@@ -6,7 +6,7 @@ This custom Azure Sentinel Data connector ingests Azure Storage Account Blobs to
 ## **Pre-requisites**
 
 1. Click on Deploy to Azure (For both Commercial & Azure GOV)
-   <a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMFMpEng%2FAuth0Logs-Connector%2Fmain%2Fazuredeploy_auth0.json" target="_blank">
+   <a href="https://raw.githubusercontent.com/MfMpEng/AzureStorageAccountBlobsIngestion/refs/heads/main/azuredeploy.json" target="_blank">
     <img src="https://aka.ms/deploytoazurebutton"/>
 	</a>
 

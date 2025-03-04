@@ -37,7 +37,7 @@
         "EventGridSubscriptionTopicName": "[concat(substring(variables('FunctionName'), 0, 20), '-EGT')]",
         "KeyVaultName"                  : "[concat(substring(variables('FunctionName'), 0, 20), '-KV')]",
         "LogAnaltyicsUri"               : "[replace(environment().portal, 'https://portal', concat('https://', toLower(parameters('WorkspaceId')), '.ods.opinsights'))]",
-        "LogAnalyticsWorkspaceKey"      : "LogAnalyticsWorkspaceKey",
+        "LogAnalyticsWorkspaceKey"      : "variables('LogAnalyticsWorkspaceKey')",
         "StorageSuffix"                 : "[environment().suffixes.storage]",
         "StorageQueueName"              : "sourcelogsqueue"
     },
@@ -282,11 +282,11 @@
                         "FUNCTIONS_EXTENSION_VERSION": "~3",
                         "FUNCTIONS_WORKER_RUNTIME": "powershell",
                         "LAURI": "[variables('LogAnaltyicsUri')]",
-                        "LATableName": "[variables('LATableName')]",
+                        "LATableName": "[parameters('LATableName')]",
                         "StorageQueueName": "variables('StorageQueueName')",
                         "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('StorageAccountName')),';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('StorageAccountName'))), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
                         "WEBSITE_CONTENTSHARE": "[toLower(variables('FunctionName'))]",
-                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/MfMpEng/AzureStorageAccountBlobsIngestion/blob/main/StorageAccountBlobsIngestion/AzureFunctionBlobsIngestion.zip?raw=true",
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/MfMpEng/AzureStorageAccountBlobsIngestion/blob/main/StorageAccountBlobsIngestion/StorageAccountBlobsIngestion.zip?raw=true",
                         "WorkspaceId": "[parameters('WorkspaceId')]",
                         "WorkspaceKey": "[concat('@Microsoft.KeyVault(SecretUri=', reference(variables('LogAnalyticsWorkspaceKey')).secretUriWithVersion, ')')]"
                     }
