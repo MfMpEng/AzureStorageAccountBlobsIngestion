@@ -6,7 +6,7 @@
             "defaultValue": "logSourceName",
             "type": "string",
             "metadata": {
-                "description": "Specifies the name of the Function App. Max char 14"
+                "description": "Specifies the name of the Function App. Max char 14, only lowerscase alphanumeric chars"
             }
         },
         "LATableName": {
@@ -30,9 +30,9 @@
         }
     },
     "variables": {
-        "FunctionName": "[concat(toLower(parameters('FunctionName')),'-', uniqueString(resourceGroup().id), uniqueString(subscription().id),'-FA')]",
+        "FunctionName": "[concat(toLower(parameters('FunctionName')),'-', uniqueString(resourceGroup().id), uniqueString(subscription().id),'-fa')]",
         "StorageAccountName": "[concat(substring(variables('FunctionName'), 0, 7), 'sa')]",
-        "StorageContainerName": "[concat(substring(variables('FunctionName'), 0, 7), '-2Blob')]",
+        "StorageContainerName": "[concat(substring(variables('FunctionName'), 0, 7), '-2blob')]",
         "EventGridSubscriptionName": "[concat(substring(variables('FunctionName'), 0, 7), '-EGS')]",
         "EventGridSubscriptionTopicName": "[concat(substring(variables('FunctionName'), 0, 7), '-EGT')]",
         "KeyVaultName": "[concat(substring(variables('FunctionName'), 0, 7), '-KV')]",
