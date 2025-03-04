@@ -1,5 +1,5 @@
-<#  
-    Title:          Azure Sentinel Log Ingestion - Process Auth0 Logs Queue Messages
+<#
+    Title:          Azure Sentinel Log Ingestion - Process Log Queue Messages
     Language:       PowerShell
     Version:        1.0.0
     Author(s):      Sreedhar Ande
@@ -9,20 +9,19 @@
 
     DESCRIPTION
     This function monitors an Azure Storage queue for messages then retrieves the file and preps it for Ingestion processing.
-      
+
     CHANGE HISTORY
-    1.0.0
-    Inital release of code
+    1.0.0 Inital release of code
 #>
 
 # Input bindings are passed in via param block.
 param([object] $QueueItem, $TriggerMetadata)
 # Get the current universal time in the default string format.
-$currentUTCtime = (Get-Date).ToUniversalTime()
+#$currentUTCtime = (Get-Date).ToUniversalTime()
 
 
 #####Environment Variables
-$AzureWebJobsStorage = $env:AzureWebJobsStorage  
+$AzureWebJobsStorage = $env:AzureWebJobsStorage
 $AzureQueueName = $env:StorageQueueName
 $WorkspaceId = $env:WorkspaceID
 $Workspacekey = $env:WorkspaceKey
@@ -61,7 +60,7 @@ Function Write-OMSLogfile {
     Version:        2.0
     Author:         Travis Roberts
     Creation Date:  7/9/2018
-    Purpose/Change: Crating a stand alone function    
+    Purpose/Change: Crating a stand alone function
     #>
     [cmdletbinding()]
     Param(
@@ -79,7 +78,7 @@ Function Write-OMSLogfile {
     Write-Verbose -Message "DateTime: $dateTime"
     Write-Verbose -Message ('DateTimeKind:' + $dateTime.kind)
     Write-Verbose -Message "Type: $type"
-    write-Verbose -Message "LogData: $logdata"   
+    write-Verbose -Message "LogData: $logdata"
 
     # Supporting Functions
     # Function to create the auth signature
@@ -110,10 +109,10 @@ Function Write-OMSLogfile {
             -method $method `
             -contentType $ContentType `
             -resource $resource
-        
-		
-		$uri = $LAURI.Trim() + $resource + "?api-version=2016-04-01"		
-		
+
+
+		$uri = $LAURI.Trim() + $resource + "?api-version=2016-04-01"
+
         $headers = @{
             "Authorization"        = $signature;
             "Log-Type"             = $type;
@@ -146,14 +145,14 @@ Function Write-OMSLogfile {
     return $returnCode
 }
 
-Function SendToLogA ($corejson, $customLogName) {    
+Function SendToLogA ($corejson, $customLogName) {
     #Test Size; Log A limit is 30MB
     $tempdata = @()
     $tempDataSize = 0
-    
-    if ((($corejson |  Convertto-json -depth 20).Length) -gt 25MB) {        
-		Write-Host "Upload is over 25MB, needs to be split"									 
-        foreach ($record in $corejson) {            
+
+    if ((($corejson |  Convertto-json -depth 20).Length) -gt 25MB) {
+		Write-Host "Upload is over 25MB, needs to be split"
+        foreach ($record in $corejson) {
             $tempdata += $record
             $tempDataSize += ($record | ConvertTo-Json -depth 20).Length
             if ($tempDataSize -gt 25MB) {
@@ -168,7 +167,7 @@ Function SendToLogA ($corejson, $customLogName) {
         Write-OMSLogfile -dateTime (Get-Date) -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey
     }
     Else {
-        #Send to Log A as is        
+        #Send to Log A as is
         Write-OMSLogfile -dateTime (Get-Date) -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey
     }
 }
@@ -183,8 +182,8 @@ if($LAPostResult -eq 200) {
       #we need to connect to the Azure Storage Queue to remove the message if we successfully process the LogFile
     $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
     $AzureQueue = Get-AzStorageQueue -Name $AzureQueueName -Context $AzureStorage
-    $Null = $AzureQueue.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)    
-    [System.GC]::collect() #cleanup memory 
+    $Null = $AzureQueue.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)
+    [System.GC]::collect() #cleanup memory
 }
-[System.GC]::GetTotalMemory($true) | out-null #Force full garbage collection - Powershell does not clean itself up properly in some situations 
+[System.GC]::GetTotalMemory($true) | out-null #Force full garbage collection - Powershell does not clean itself up properly in some situations
 #end of Script
