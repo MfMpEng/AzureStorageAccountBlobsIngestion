@@ -31,7 +31,7 @@
     },
     "variables": {
         "FunctionName": "[concat(toLower(parameters('FunctionName')),'-', uniqueString(resourceGroup().id), uniqueString(subscription().id),'-FA')]",
-        "StorageAccountName": "[concat(substring(variables('FunctionName'), 0, 7), 'SA')]",
+        "StorageAccountName": "[concat(substring(variables('FunctionName'), 0, 7), 'sa')]",
         "StorageContainerName": "[concat(substring(variables('FunctionName'), 0, 7), '-2Blob')]",
         "EventGridSubscriptionName": "[concat(substring(variables('FunctionName'), 0, 7), '-EGS')]",
         "EventGridSubscriptionTopicName": "[concat(substring(variables('FunctionName'), 0, 7), '-EGT')]",
