@@ -1,3 +1,5 @@
+Unhinged, more templated, totally untested fork of ![Sreehar Ande's project](https://github.com/sreedharande/AzureStorageAccountBlobsIngestion)
+
 # Storage Account Blobs to Azure Sentinel
 This custom Azure Sentinel Data connector ingests Azure Storage Account Blobs to Azure Sentinel
 
