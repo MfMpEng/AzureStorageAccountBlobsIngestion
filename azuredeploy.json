@@ -207,6 +207,55 @@
             }
         },
         {
+            "apiVersion": "2016-10-01",
+            "location": "[resourceGroup().location]",
+            "name": "[variables('KeyVaultName')]",
+            "type": "Microsoft.KeyVault/vaults",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', variables('FunctionName'))]"
+            ],
+            "properties": {
+                "tenantId": "[subscription().tenantId]",
+                "accessPolicies": [
+                    {
+                        "objectId": "[reference(resourceId('Microsoft.Web/sites', variables('FunctionName')),'2019-08-01', 'full').identity.principalId]",
+                        "tenantId": "[subscription().tenantId]",
+                        "permissions": {
+                            "secrets": [
+                                "get",
+                                "list"
+                            ]
+                        }
+                    }
+                ],
+                "sku": {
+                    "family": "A",
+                    "name": "standard"
+                },
+                "enabledForDeployment": false,
+                "enabledForDiskEncryption": false,
+                "enabledForTemplateDeployment": true,
+                "enableSoftDelete": true
+            },
+            "resources": [
+                {
+                    "apiVersion": "2016-10-01",
+                    "name": "[variables('LogAnalyticsWorkspaceKey')]",
+                    "type": "secrets",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.KeyVault/vaults/', variables('KeyVaultName'))]"
+                    ],
+                    "properties": {
+                        "contentType": "string",
+                        "value": "[parameters('WorkspaceKey')]",
+                        "attributes": {
+                            "enabled": true
+                        }
+                    }
+                }
+            ]
+        },
+        {
             "apiVersion": "2018-11-01",
             "kind": "functionapp",
             "location": "[resourceGroup().location]",
@@ -258,55 +307,6 @@
             ]
         },
         {
-            "apiVersion": "2016-10-01",
-            "location": "[resourceGroup().location]",
-            "name": "[variables('KeyVaultName')]",
-            "type": "Microsoft.KeyVault/vaults",
-            "dependsOn": [
-                "[resourceId('Microsoft.Web/sites', variables('FunctionName'))]"
-            ],
-            "properties": {
-                "tenantId": "[subscription().tenantId]",
-                "accessPolicies": [
-                    {
-                        "objectId": "[reference(resourceId('Microsoft.Web/sites', variables('FunctionName')),'2019-08-01', 'full').identity.principalId]",
-                        "tenantId": "[subscription().tenantId]",
-                        "permissions": {
-                            "secrets": [
-                                "get",
-                                "list"
-                            ]
-                        }
-                    }
-                ],
-                "sku": {
-                    "family": "A",
-                    "name": "standard"
-                },
-                "enabledForDeployment": false,
-                "enabledForDiskEncryption": false,
-                "enabledForTemplateDeployment": true,
-                "enableSoftDelete": true
-            },
-            "resources": [
-                {
-                    "apiVersion": "2016-10-01",
-                    "name": "[variables('LogAnalyticsWorkspaceKey')]",
-                    "type": "secrets",
-                    "dependsOn": [
-                        "[resourceId('Microsoft.KeyVault/vaults/', variables('KeyVaultName'))]"
-                    ],
-                    "properties": {
-                        "contentType": "string",
-                        "value": "[parameters('WorkspaceKey')]",
-                        "attributes": {
-                            "enabled": true
-                        }
-                    }
-                }
-            ]
-        },
-        {
             "apiVersion": "2020-02-02",
             "kind": "web",
             "location": "[resourceGroup().location]",
@@ -337,7 +337,7 @@
             "name": "[concat(variables('storageAccountName'), '/Microsoft.EventGrid/', variables('EventGridSubscriptionTopicName'))]",
             "apiVersion": "2020-01-01-preview",
             "dependsOn": [
-                "[variables('storageAccountName')]"
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
             ],
             "properties": {
                 "destination": {
