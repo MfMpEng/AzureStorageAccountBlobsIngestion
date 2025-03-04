@@ -190,42 +190,6 @@
             }
         },
         {
-            "type": "Microsoft.EventGrid/systemTopics",
-            "apiVersion": "2020-04-01-preview",
-            "name": "[variables('EventGridSubscriptionTopicName')]",
-            "location": "[resourceGroup().location]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
-            ],
-            "properties": {
-                "source": "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
-                "topicType": "Microsoft.Storage.StorageAccounts"
-            }
-        },
-        {
-            "type": "Microsoft.Storage/storageAccounts/providers/eventSubscriptions",
-            "name": "[concat(variables('storageAccountName'), '/Microsoft.EventGrid/', variables('EventGridSubscriptionTopicName'))]",
-            "apiVersion": "2020-01-01-preview",
-            "dependsOn": [
-                "[variables('storageAccountName')]"
-            ],
-            "properties": {
-                "destination": {
-                    "endpointType": "StorageQueue",
-                    "properties": {
-                        "resourceId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
-                        "queueName": "[variables('StorageQueueName')]"
-                    }
-                },
-                "eventDeliverySchema": "EventGridSchema",
-                "filter": {
-                    "includedEventTypes": [
-                        "Microsoft.Storage.BlobCreated"
-                    ]
-                }
-            }
-        },
-        {
             "apiVersion": "2018-02-01",
             "kind": "functionapp",
             "location": "[resourceGroup().location]",
@@ -352,8 +316,43 @@
                 "RetentionInDays": 30,
                 "Application_Type": "web",
                 "ApplicationId": "[variables('FunctionName')]",
-                "WorkspaceResourceId": "5ee0f11b-5ce1-4baa-ba7c-65d88bd721b2",
                 "ImmediatePurgeDataOn30Days": true
+            }
+        },
+        {
+            "type": "Microsoft.EventGrid/systemTopics",
+            "apiVersion": "2020-04-01-preview",
+            "name": "[variables('EventGridSubscriptionTopicName')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
+            ],
+            "properties": {
+                "source": "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
+                "topicType": "Microsoft.Storage.StorageAccounts"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/providers/eventSubscriptions",
+            "name": "[concat(variables('storageAccountName'), '/Microsoft.EventGrid/', variables('EventGridSubscriptionTopicName'))]",
+            "apiVersion": "2020-01-01-preview",
+            "dependsOn": [
+                "[variables('storageAccountName')]"
+            ],
+            "properties": {
+                "destination": {
+                    "endpointType": "StorageQueue",
+                    "properties": {
+                        "resourceId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+                        "queueName": "[variables('StorageQueueName')]"
+                    }
+                },
+                "eventDeliverySchema": "EventGridSchema",
+                "filter": {
+                    "includedEventTypes": [
+                        "Microsoft.Storage.BlobCreated"
+                    ]
+                }
             }
         }
     ]
