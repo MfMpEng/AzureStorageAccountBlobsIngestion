@@ -190,12 +190,22 @@
             }
         },
         {
+            "type": "Microsoft.EventGrid/systemTopics",
+            "apiVersion": "2025-02-15",
+            "name": "[variables('EventGridSubscriptionTopicName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "source": "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
+                "topicType": "Microsoft.Storage.StorageAccounts"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
+            ]
+        },
+        {
             "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
             "apiVersion": "2025-02-15",
             "name": "[concat(variables('storageAccountName'), '/Microsoft.EventGrid/', variables('EventGridSubscriptionTopicName'))]",
-            "dependsOn": [
-                "[variables('storageAccountName')]"
-            ],
             "properties": {
                 "eventDeliverySchema": "EventGridSchema",
                 "destination": {
@@ -205,24 +215,14 @@
                         "resourceId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
                     }
                 },
+            "dependsOn": [
+                "[variables('storageAccountName')]"
+            ],
                 "filter": {
                     "includedEventTypes": [
                         "Microsoft.Storage.BlobCreated"
                     ]
                 }
-            }
-        },
-        {
-            "apiVersion": "2020-04-01-preview",
-            "location": "[resourceGroup().location]",
-            "name": "[variables('EventGridSubscriptionTopicName')]",
-            "type": "Microsoft.EventGrid/systemTopics",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
-            ],
-            "properties": {
-                "source": "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
-                "topicType": "Microsoft.Storage.StorageAccounts"
             }
         },
         {
