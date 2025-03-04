@@ -30,12 +30,12 @@
         }
     },
     "variables": {
-        "FunctionName"                  : "[concat(toLower(parameters('FunctionName')), uniqueString(resourceGroup().id), uniqueString(subscription().id),'-FA')]",
-        "StorageAccountName"            : "[concat(substring(variables('FunctionName'), 0, 20), '-SA')]",
-        "StorageContainerName"          : "[concat(substring(variables('FunctionName'), 0, 20), '-2Blob')]",
-        "EventGridSubscriptionName"     : "[concat(substring(variables('FunctionName'), 0, 20), '-EGS')]",
-        "EventGridSubscriptionTopicName": "[concat(substring(variables('FunctionName'), 0, 20), '-EGT')]",
-        "KeyVaultName"                  : "[concat(substring(variables('FunctionName'), 0, 20), '-KV')]",
+        "FunctionName"                  : "[concat(toLower(parameters('FunctionName')),'-', uniqueString(resourceGroup().id), uniqueString(subscription().id),'-FA')]",
+        "StorageAccountName"            : "[concat(substring(variables('FunctionName'),'-', 0, 20), '-SA')]",
+        "StorageContainerName"          : "[concat(substring(variables('FunctionName'),'-', 0, 20), '-2Blob')]",
+        "EventGridSubscriptionName"     : "[concat(substring(variables('FunctionName'),'-', 0, 20), '-EGS')]",
+        "EventGridSubscriptionTopicName": "[concat(substring(variables('FunctionName'),'-', 0, 20), '-EGT')]",
+        "KeyVaultName"                  : "[concat(substring(variables('FunctionName'),'-', 0, 20), '-KV')]",
         "LogAnaltyicsUri"               : "[replace(environment().portal, 'https://portal', concat('https://', toLower(parameters('WorkspaceId')), '.ods.opinsights'))]",
         "LogAnalyticsWorkspaceKey"      : "variables('LogAnalyticsWorkspaceKey')",
         "StorageSuffix"                 : "[environment().suffixes.storage]",
@@ -205,7 +205,7 @@
         {
             "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
             "apiVersion": "2025-02-15",
-            "name": "[concat(variables('storageAccountName'), '/Microsoft.EventGrid/', variables('EventGridSubscriptionTopicName'))]",
+            "name": "[concat(variables('storageAccountName'), '-Microsoft.EventGrid-', variables('EventGridSubscriptionTopicName'))]",
             "properties": {
                 "eventDeliverySchema": "EventGridSchema",
                 "destination": {
