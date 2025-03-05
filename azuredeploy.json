@@ -30,16 +30,16 @@
         }
     },
     "variables": {
-        "FunctionName": "[concat(toLower(parameters('FunctionName')),'-', uniqueString(resourceGroup().id), uniqueString(subscription().id),'-fa')]",
-        "StorageAccountName": "[concat(substring(variables('FunctionName'), 0, 13), 'sa')]",
-        "StorageContainerName": "[concat(substring(variables('FunctionName'), 0, 13), '-2blob')]",
-        "EventGridSubscriptionName": "[concat(substring(variables('FunctionName'), 0, 13), '-EGS')]",
-        "EventGridSubscriptionTopicName": "[concat(substring(variables('FunctionName'), 0, 13), '-EGT')]",
-        "KeyVaultName": "[concat(substring(variables('FunctionName'), 0, 13), '-kv')]",
+        "FunctionName"                  : "[concat(toLower(parameters('FunctionName')),'-', uniqueString(subscription().id), uniqueString(resourceGroup().id), '-fa')]",
+        "StorageAccountName"            : "[concat(toLower(substring(variables('FunctionName'), 0, 8), 'sa'))]",
+        "StorageContainerName"          : "[concat(toLower(substring(variables('FunctionName'), 0, 16), '-2blob'))]",
+        "EventGridSubscriptionName"     : "[concat(substring(variables('FunctionName'), 0, 16),'-EGS')]",
+        "EventGridSubscriptionTopicName": "[concat(substring(variables('FunctionName'), 0, 16),'-EGT')]",
+        "KeyVaultName"                  : "[concat(substring(variables('FunctionName'), 0, 16),'-kev')]",
         "LogAnaltyicsUri": "[replace(environment().portal, 'https://portal', concat('https://', toLower(parameters('WorkspaceId')), '.ods.opinsights'))]",
+        "StorageSuffix"  : "[environment().suffixes.storage]",
         "LogAnalyticsWorkspaceKey": "LogAnalyticsWorkspaceKey",
-        "StorageSuffix": "[environment().suffixes.storage]",
-        "StorageQueueName": "sourcelogsqueue"
+        "StorageQueueName"        : "sourcelogsqueue"
     },
     "resources": [
         {
