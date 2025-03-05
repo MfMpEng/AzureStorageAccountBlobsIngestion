@@ -22,7 +22,7 @@
                 "description": "Specifies the Azure Log Analytics Workspace Id."
             }
         },
-        "WorkspaceKey": {
+        "LogAnalyticsWorkspaceKey": {
             "type": "securestring",
             "metadata": {
                 "description": "Specifies the Azure Log Analytics Workspace Key."
@@ -320,25 +320,12 @@
             }
         },
         {
-            "type": "Microsoft.EventGrid/systemTopics",
-            "apiVersion": "2020-04-01-preview",
-            "name": "[variables('EventGridSubscriptionTopicName')]",
-            "location": "[resourceGroup().location]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('StorageAccountName'), 'default')]"
-            ],
-            "properties": {
-                "source": "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
-                "topicType": "Microsoft.Storage.StorageAccounts"
-            }
-        },
-        {
             "type": "Microsoft.Storage/storageAccounts/providers/eventSubscriptions",
             "name": "[concat(variables('storageAccountName'), '/Microsoft.EventGrid/', variables('EventGridSubscriptionTopicName'))]",
             "apiVersion": "2020-01-01-preview",
             "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('StorageAccountName'), 'default')]"
             ],
             "properties": {
                 "destination": {
@@ -354,6 +341,20 @@
                         "Microsoft.Storage.BlobCreated"
                     ]
                 }
+            }
+        },
+        {
+            "type": "Microsoft.EventGrid/systemTopics",
+            "apiVersion": "2020-04-01-preview",
+            "name": "[variables('EventGridSubscriptionTopicName')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('StorageAccountName'), 'default')]"
+            ],
+            "properties": {
+                "source": "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
+                "topicType": "Microsoft.Storage.StorageAccounts"
             }
         }
     ]
