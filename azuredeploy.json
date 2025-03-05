@@ -22,7 +22,7 @@
                 "description": "Specifies the Azure Log Analytics Workspace Id."
             }
         },
-        "LogAnalyticsWorkspaceKey": {
+        "WorkspaceKey": {
             "type": "securestring",
             "metadata": {
                 "description": "Specifies the Azure Log Analytics Workspace Key."
@@ -37,7 +37,7 @@
         "EventGridSubscriptionTopicName": "[concat(substring(variables('FunctionName'), 0, 13), '-EGT')]",
         "KeyVaultName": "[concat(substring(variables('FunctionName'), 0, 13), '-kv')]",
         "LogAnaltyicsUri": "[replace(environment().portal, 'https://portal', concat('https://', toLower(parameters('WorkspaceId')), '.ods.opinsights'))]",
-        "LogAnalyticsWorkspaceKey": "variables('LogAnalyticsWorkspaceKey')",
+        "LogAnalyticsWorkspaceKey": "LogAnalyticsWorkspaceKey",
         "StorageSuffix": "[environment().suffixes.storage]",
         "StorageQueueName": "sourcelogsqueue"
     },
@@ -301,7 +301,7 @@
                         "WEBSITE_CONTENTSHARE": "[toLower(variables('FunctionName'))]",
                         "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/MfMpEng/AzureStorageAccountBlobsIngestion/blob/main/StorageAccountBlobsIngestion/StorageAccountBlobsIngestion.zip?raw=true",
                         "WorkspaceId": "[parameters('WorkspaceId')]",
-                        "WorkspaceKey": "[concat('@Microsoft.KeyVault(SecretUri=', reference(variables('LogAnalyticsWorkspaceKey')).secretUriWithVersion, ')')]"
+                        "LogAnalyticsWorkspaceKey": "[concat('@Microsoft.KeyVault(SecretUri=', reference(variables('LogAnalyticsWorkspaceKey')).secretUriWithVersion, ')')]"
                     }
                 }
             ]
