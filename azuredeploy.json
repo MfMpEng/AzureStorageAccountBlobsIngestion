@@ -325,7 +325,8 @@
             "name": "[variables('EventGridSubscriptionTopicName')]",
             "location": "[resourceGroup().location]",
             "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('StorageAccountName'), 'default')]"
             ],
             "properties": {
                 "source": "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
