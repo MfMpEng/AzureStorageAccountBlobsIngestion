@@ -106,7 +106,7 @@
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
             ],
             "properties": {
-                "publicAccess": "null"
+                "publicAccess": "None"
             }
         },
         {
@@ -118,7 +118,7 @@
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
             ],
             "properties": {
-                "publicAccess": "null"
+                "publicAccess": "None"
             }
         },
         {
@@ -130,7 +130,7 @@
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
             ],
             "properties": {
-                "publicAccess": "null"
+                "publicAccess": "None"
             }
         },
         {
@@ -196,7 +196,7 @@
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
             ],
             "properties": {
-                "publicAccess": "null"
+                "publicAccess": "None"
             }
         },
         {
@@ -249,11 +249,7 @@
                 "networkAcls": {
                     "bypass": "AzureServices",
                     "defaultAction": "deny",
-                    "ipRules": [
-                        {
-                            "value": "10.0.0.0/8"
-                        }
-                    ],
+                    "ipRules": [],
                     "virtualNetworkRules": []
                 }
             },
