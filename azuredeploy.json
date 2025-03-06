@@ -228,7 +228,7 @@
                 "tenantId": "[subscription().tenantId]",
                 "accessPolicies": [
                     {
-                        "objectId": "[reference(resourceId('Microsoft.Web/sites', variables('FunctionName')),'2019-08-01', 'full').identity.principalId]",
+                        "objectId": "[reference(resourceId('Microsoft.Web/sites', variables('FunctionName')),'2024-04-01', 'full').identity.principalId]",
                         "tenantId": "[subscription().tenantId]",
                         "permissions": {
                             "secrets": [
@@ -323,25 +323,14 @@
             ]
         },
         {
-            "apiVersion": "2020-02-02",
-            "kind": "web",
-            "location": "[resourceGroup().location]",
-            "name": "[variables('FunctionName')]",
-            "type": "Microsoft.Insights/components",
-            "properties": {
-                "RetentionInDays": 30,
-                "Application_Type": "web",
-                "ApplicationId": "[variables('FunctionName')]",
-                "ImmediatePurgeDataOn30Days": true
-            }
-        },
-        {
             "type": "Microsoft.Storage/storageAccounts/providers/eventSubscriptions",
             "name": "[concat(variables('storageAccountName'), '/Microsoft.EventGrid/', variables('EventGridSubscriptionTopicName'))]",
             "apiVersion": "2020-01-01-preview",
             "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('StorageAccountName'), 'default')]"
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('StorageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('StorageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts/queueServices', variables('StorageAccountName'), 'default')]"
             ],
             "properties": {
                 "destination": {
@@ -361,16 +350,31 @@
         },
         {
             "type": "Microsoft.EventGrid/systemTopics",
-            "apiVersion": "2020-04-01-preview",
+            "apiVersion": "2025-02-15",
             "name": "[variables('EventGridSubscriptionTopicName')]",
             "location": "[resourceGroup().location]",
             "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('StorageAccountName'), 'default')]"
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('StorageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('StorageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts/queueServices', variables('StorageAccountName'), 'default')]"
             ],
             "properties": {
                 "source": "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
                 "topicType": "Microsoft.Storage.StorageAccounts"
+            }
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2020-02-02",
+            "name": "[variables('FunctionName')]",
+            "kind": "web",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[variables('FunctionName')]",
+                "ImmediatePurgeDataOn30Days": true,
+                "RetentionInDays": 30
             }
         }
     ]
