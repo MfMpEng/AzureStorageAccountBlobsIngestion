@@ -13,7 +13,8 @@
     CHANGE HISTORY
     1.0.0 Inital release of code
 #>
-
+Import-Module Az.Accounts
+Import-Module Az.Accounts
 # Input bindings are passed in via param block.
 param([object] $QueueItem, $TriggerMetadata)
 # Get the current universal time in the default string format.
@@ -24,7 +25,7 @@ param([object] $QueueItem, $TriggerMetadata)
 $AzureWebJobsStorage = $env:AzureWebJobsStorage
 $AzureQueueName = $env:StorageQueueName
 $WorkspaceId = $env:WorkspaceID
-$Workspacekey = $env:WorkspaceKey
+$Workspacekey = $env:LogAnalyticsWorkspaceKey
 $LATableName = $env:LATableName
 $LAURI = $env:LAURI
 
