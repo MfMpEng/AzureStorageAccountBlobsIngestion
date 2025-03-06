@@ -28,8 +28,8 @@
             }
         },
         "WorkspaceId": {
-            "minValue": 36,
-            "maxValue": 36,
+            "minLength": 36,
+            "maxLength": 36,
             "defaultValue": "88888888-4444-4444-4444-121212121212",
             "type": "string",
             "metadata": {
