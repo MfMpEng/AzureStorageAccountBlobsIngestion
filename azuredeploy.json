@@ -31,7 +31,6 @@
             }
         },
         "WorkspaceKey": {
-            "defaultValue": "secret",
             "type": "securestring",
             "metadata": {
                 "description": "Specifies the Azure Log Analytics Workspace Key."
@@ -239,7 +238,7 @@
                 "name": "[variables('FunctionName')]",
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('FunctionName'))]",
                 "siteConfig": {
-                    "alwaysOn": true,
+                    "alwaysOn": false,
                     "httpsOnly": true,
                     "powerShellVersion": "7.4",
                     "netFrameworkVersion": "v4.0",
