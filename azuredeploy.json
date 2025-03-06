@@ -36,12 +36,13 @@
         }
     },
     "variables": {
-        "FunctionName": "[substring(toLower(concat('fa-', parameters('FunctionName'), '-', uniqueString(resourceGroup().id), uniqueString(subscription().id))),0,31)]",
-        "StorageAccountName": "[concat(toLower(substring(variables('FunctionName'), 3, 8 )), 'sa')]",
-        "StorageContainerName": "[concat(toLower(substring(variables('FunctionName'), 0, 16)), '-2blob')]",
-        "EventGridSubscriptionName": "[concat(substring(variables('FunctionName'), 0, 18),'-EGS')]",
-        "EventGridSubscriptionTopicName": "[concat(substring(variables('FunctionName'), 0, 15),'-EGT')]",
-        "KeyVaultName": "[substring(concat(variables('FunctionName'), uniqueString(resourceGroup().id), uniqueString(subscription().id),'-kv'), 0, 15)]",
+        "FunctionName"                  : "[substring(toLower(concat('fa-', parameters('FunctionName'), '-', uniqueString(resourceGroup().id), uniqueString(subscription().id))),0,31)]",
+        "StorageAccountName"            : "[concat(toLower(substring(variables('FunctionName'), 3, 8 )), 'sa')]",
+        "StorageContainerName"          : "[concat(toLower(substring(variables('FunctionName'), 3, 16)), '-2blob')]",
+        "EventGridSubscriptionName"     : "[concat(variables('FunctionName'), '-EvtSub')]",
+        "EventGridSubscriptionTopicName": "[concat(variables('FunctionName'), '-EvtGrid')]",
+        "KeyVaultName"                  : "[concat(variables('FunctionName'), '-kv')]",
+        "AppInsightsName"               : "[concat(variables('FunctionName'), '-webApInsgt']",
         "LogAnaltyicsUri": "[replace(environment().portal, 'https://portal', concat('https://', toLower(parameters('WorkspaceId')), '.ods.opinsights'))]",
         "StorageSuffix": "[environment().suffixes.storage]",
         "LogAnalyticsWorkspaceKey": "LogAnalyticsWorkspaceKey",
@@ -223,6 +224,141 @@
             }
         },
         {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2024-04-01",
+            "name": "[variables('FunctionName')]",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "kind": "functionapp",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "name": "[variables('FunctionName')]",
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('FunctionName'))]",
+                "siteConfig": {
+                    "alwaysOn": true,
+                    "httpsOnly": true,
+                    "powerShellVersion": "7.4",
+                    "netFrameworkVersion": "v4.0",
+                    "scmIpSecurityRestrictionsUseMain": true,
+                    "minTlsVersion": "1.2",
+                    "scmMinTlsVersion": "1.2",
+                    "http20Enabled": false,
+                    "requestTracingEnabled": false,
+                    "remoteDebuggingEnabled": false,
+                    "httpLoggingEnabled": true,
+                    "clientAffinityEnabled": true,
+                    "cors": {
+                        "allowedOrigins": [
+                            "https://portal.azure.com"
+                        ],
+                        "supportCredentials": true
+                    },
+                    "properties": {
+                        "numberOfWorkers": 1,
+                        "defaultDocuments": [
+                            "Default.htm",
+                            "Default.html",
+                            "Default.asp",
+                            "index.htm",
+                            "index.html",
+                            "iisstart.htm",
+                            "default.aspx",
+                            "index.php"
+                        ]
+                    }
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('StorageAccountName')))]",
+                "[resourceId('Microsoft.Web/serverfarms', variables('FunctionName'))]",
+                "[resourceId('Microsoft.Insights/components', variables('FunctionName'))]"
+            ],
+            "resources": [
+                {
+                    "apiVersion": "2018-11-01",
+                    "type": "config",
+                    "name": "appsettings",
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/sites/', variables('FunctionName'))]",
+                        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('KeyVaultName'), variables('LogAnalyticsWorkspaceKey'))]"
+                    ],
+                    "properties": {
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.insights/components', variables('FunctionName')), '2015-05-01').InstrumentationKey]",
+                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('microsoft.insights/components', variables('FunctionName')), '2015-05-01').ConnectionString]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('StorageAccountName')),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('StorageAccountName'))), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
+                        "FUNCTIONS_EXTENSION_VERSION": "~4",
+                        "FUNCTIONS_WORKER_RUNTIME": "powershell",
+                        "LAURI": "[variables('LogAnaltyicsUri')]",
+                        "LATableName": "[parameters('LATableName')]",
+                        "StorageQueueName": "variables('StorageQueueName')",
+                        "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('StorageAccountName')),';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('StorageAccountName'))), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
+                        "WEBSITE_CONTENTSHARE": "[toLower(variables('FunctionName'))]",
+                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/MfMpEng/AzureStorageAccountBlobsIngestion/blob/main/StorageAccountBlobsIngestion/AzureFunctionBlobsIngestion.zip?raw=true",
+                        "WorkspaceId": "[parameters('WorkspaceId')]",
+                        "LogAnalyticsWorkspaceKey": "[concat('@Microsoft.KeyVault(SecretUri=', reference(variables('LogAnalyticsWorkspaceKey')).secretUriWithVersion, ')')]"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/providers/eventSubscriptions",
+            "name": "[concat(variables('storageAccountName'), '/Microsoft.EventGrid/', variables('EventGridSubscriptionTopicName'))]",
+            "apiVersion": "2020-01-01-preview",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('StorageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('StorageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts/queueServices', variables('StorageAccountName'), 'default')]"
+            ],
+            "properties": {
+                "destination": {
+                    "endpointType": "StorageQueue",
+                    "properties": {
+                        "resourceId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+                        "queueName": "[variables('StorageQueueName')]"
+                    }
+                },
+                "eventDeliverySchema": "EventGridSchema",
+                "filter": {
+                    "includedEventTypes": [
+                        "Microsoft.Storage.BlobCreated"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.EventGrid/systemTopics",
+            "apiVersion": "2025-02-15",
+            "name": "[variables('EventGridSubscriptionTopicName')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('StorageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('StorageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts/queueServices', variables('StorageAccountName'), 'default')]"
+            ],
+            "properties": {
+                "source": "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
+                "topicType": "Microsoft.Storage.StorageAccounts"
+            }
+        },
+        {
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2020-02-02",
+            "name": "[variables('AppInsightsName')]",
+            "kind": "web",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[variables('FunctionName')]",
+                "ImmediatePurgeDataOn30Days": true,
+                "RetentionInDays": 30,
+                "WorkspaceResourceId": "[parameters('WorkspaceResourceId')]"
+
+            }
+        },
+        {
             "type": "Microsoft.KeyVault/vaults",
             "apiVersion": "2024-12-01-preview",
             "name": "[variables('KeyVaultName')]",
@@ -276,152 +412,6 @@
                     }
                 }
             ]
-        },
-        {
-            "type": "Microsoft.Web/sites",
-            "apiVersion": "2024-04-01",
-            "name": "[variables('FunctionName')]",
-            "identity": {
-                "type": "SystemAssigned"
-            },
-            "kind": "functionapp",
-            "location": "[resourceGroup().location]",
-            "properties": {
-                "name": "[variables('FunctionName')]",
-                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('FunctionName'))]",
-                "siteConfig": {
-                    "powerShellVersion": "7.4"
-                },
-                "alwaysOn": true,
-                "clientAffinityEnabled": true,
-                "httpsOnly": true
-            },
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('StorageAccountName')))]",
-                "[resourceId('Microsoft.Web/serverfarms', variables('FunctionName'))]",
-                "[resourceId('Microsoft.Insights/components', variables('FunctionName'))]"
-            ],
-            "resources": [
-                {
-                    "apiVersion": "2018-11-01",
-                    "name": "appsettings",
-                    "type": "config",
-                    "dependsOn": [
-                        "[concat('Microsoft.Web/sites/', variables('FunctionName'))]",
-                        "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('KeyVaultName'), variables('LogAnalyticsWorkspaceKey'))]"
-                    ],
-                    "properties": {
-                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('Microsoft.insights/components', variables('FunctionName')), '2015-05-01').InstrumentationKey]",
-                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('microsoft.insights/components', variables('FunctionName')), '2015-05-01').ConnectionString]",
-                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('StorageAccountName')),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('StorageAccountName'))), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
-                        "FUNCTIONS_EXTENSION_VERSION": "~4",
-                        "FUNCTIONS_WORKER_RUNTIME": "powershell",
-                        "LAURI": "[variables('LogAnaltyicsUri')]",
-                        "LATableName": "[parameters('LATableName')]",
-                        "StorageQueueName": "variables('StorageQueueName')",
-                        "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "[concat('DefaultEndpointsProtocol=https;AccountName=', toLower(variables('StorageAccountName')),';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', toLower(variables('StorageAccountName'))), '2019-06-01').keys[0].value, ';EndpointSuffix=',toLower(variables('StorageSuffix')))]",
-                        "WEBSITE_CONTENTSHARE": "[toLower(variables('FunctionName'))]",
-                        "WEBSITE_RUN_FROM_PACKAGE": "https://github.com/MfMpEng/AzureStorageAccountBlobsIngestion/blob/main/StorageAccountBlobsIngestion/AzureFunctionBlobsIngestion.zip?raw=true",
-                        "WorkspaceId": "[parameters('WorkspaceId')]",
-                        "LogAnalyticsWorkspaceKey": "[concat('@Microsoft.KeyVault(SecretUri=', reference(variables('LogAnalyticsWorkspaceKey')).secretUriWithVersion, ')')]"
-                    }
-                }
-            ]
-        },
-        {
-            "type": "Microsoft.Web/sites/config",
-            "apiVersion": "2024-04-01",
-            "name": "[concat('sites_', variables('FunctionName'), '/web')]",
-            "location": "[resourceGroup().location]",
-            "dependsOn": [
-                "[concat('Microsoft.Web/sites/', variables('FunctionName'))]"
-            ],
-                "netFrameworkVersion": "v4.0",
-                "powerShellVersion": "7.4",
-                "requestTracingEnabled": false,
-                "remoteDebuggingEnabled": false,
-                "httpLoggingEnabled": false,
-                "alwaysOn": false,
-                "cors": {
-                    "allowedOrigins": [
-                        "https://portal.azure.com"
-                    ],
-                    "supportCredentials": true
-                },
-                "scmIpSecurityRestrictionsUseMain": true,
-                "http20Enabled": false,
-                "minTlsVersion": "1.2",
-                "scmMinTlsVersion": "1.2",
-            "properties": {
-                "numberOfWorkers": 1,
-                "defaultDocuments": [
-                    "Default.htm",
-                    "Default.html",
-                    "Default.asp",
-                    "index.htm",
-                    "index.html",
-                    "iisstart.htm",
-                    "default.aspx",
-                    "index.php"
-                ]
-            }
-        },
-        {
-            "type": "Microsoft.Storage/storageAccounts/providers/eventSubscriptions",
-            "name": "[concat(variables('storageAccountName'), '/Microsoft.EventGrid/', variables('EventGridSubscriptionTopicName'))]",
-            "apiVersion": "2020-01-01-preview",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('StorageAccountName'), 'default')]",
-                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('StorageAccountName'), 'default')]",
-                "[resourceId('Microsoft.Storage/storageAccounts/queueServices', variables('StorageAccountName'), 'default')]"
-            ],
-            "properties": {
-                "destination": {
-                    "endpointType": "StorageQueue",
-                    "properties": {
-                        "resourceId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
-                        "queueName": "[variables('StorageQueueName')]"
-                    }
-                },
-                "eventDeliverySchema": "EventGridSchema",
-                "filter": {
-                    "includedEventTypes": [
-                        "Microsoft.Storage.BlobCreated"
-                    ]
-                }
-            }
-        },
-        {
-            "type": "Microsoft.EventGrid/systemTopics",
-            "apiVersion": "2025-02-15",
-            "name": "[variables('EventGridSubscriptionTopicName')]",
-            "location": "[resourceGroup().location]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
-                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('StorageAccountName'), 'default')]",
-                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('StorageAccountName'), 'default')]",
-                "[resourceId('Microsoft.Storage/storageAccounts/queueServices', variables('StorageAccountName'), 'default')]"
-            ],
-            "properties": {
-                "source": "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
-                "topicType": "Microsoft.Storage.StorageAccounts"
-            }
-        },
-        {
-            "type": "Microsoft.Insights/components",
-            "apiVersion": "2020-02-02",
-            "name": "[variables('FunctionName')]",
-            "kind": "web",
-            "location": "[resourceGroup().location]",
-            "properties": {
-                "Application_Type": "web",
-                "ApplicationId": "[variables('FunctionName')]",
-                "ImmediatePurgeDataOn30Days": true,
-                "RetentionInDays": 30,
-                "WorkspaceResourceId": "[parameters('WorkspaceResourceId')]"
-
-            }
         }
     ]
 }
