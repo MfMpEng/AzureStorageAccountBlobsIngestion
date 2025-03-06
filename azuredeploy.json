@@ -42,7 +42,7 @@
         "EventGridSubscriptionName"     : "[concat(variables('FunctionName'), '-EvtSub')]",
         "EventGridSubscriptionTopicName": "[concat(variables('FunctionName'), '-EvtGrid')]",
         "KeyVaultName"                  : "[concat(variables('FunctionName'), '-kv')]",
-        "AppInsightsName"               : "[concat(variables('FunctionName'), '-webApInsgt']",
+        "AppInsightsName"               : "[concat( variables('FunctionName'), '-webApInsgt')]",
         "LogAnaltyicsUri": "[replace(environment().portal, 'https://portal', concat('https://', toLower(parameters('WorkspaceId')), '.ods.opinsights'))]",
         "StorageSuffix": "[environment().suffixes.storage]",
         "LogAnalyticsWorkspaceKey": "LogAnalyticsWorkspaceKey",
