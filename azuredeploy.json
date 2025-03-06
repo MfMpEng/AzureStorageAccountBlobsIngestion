@@ -35,7 +35,7 @@
         "StorageContainerName": "[concat(toLower(substring(variables('FunctionName'), 0, 16)), '-2blob')]",
         "EventGridSubscriptionName": "[concat(substring(variables('FunctionName'), 0, 16),'-EGS')]",
         "EventGridSubscriptionTopicName": "[concat(substring(variables('FunctionName'), 0, 16),'-EGT')]",
-        "KeyVaultName": "[concat(substring(variables('FunctionName'), 0, 17),'-kyv')]",
+        "KeyVaultName": "[substring(concat(variables('FunctionName'), uniqueString(resourceGroup().id), uniqueString(subscription().id),'-kv'), 0, 17)]",
         "LogAnaltyicsUri": "[replace(environment().portal, 'https://portal', concat('https://', toLower(parameters('WorkspaceId')), '.ods.opinsights'))]",
         "StorageSuffix": "[environment().suffixes.storage]",
         "LogAnalyticsWorkspaceKey": "LogAnalyticsWorkspaceKey",
