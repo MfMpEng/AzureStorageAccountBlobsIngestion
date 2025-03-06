@@ -3,7 +3,7 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
         "FunctionName": {
-            "defaultValue": "logSourceName",
+            "defaultValue": "logSource",
             "minLength": 3,
             "maxLength": 12,
             "type": "string",
@@ -44,8 +44,9 @@
         }
     },
     "variables": {
-        "FunctionName"   : "[substring(toLower(concat('fa-', parameters('FunctionName'), '-', uniqueString(resourceGroup().id), uniqueString(subscription().id))),0,31)]",
-        "StgActName"     : "[concat(toLower(substring(variables('FunctionName'), 3, 22)), 'sa')]",
+        "HashName"       : "uniqueString(resourceGroup().id), uniqueString(subscription().id)"
+        "FunctionName"   : "[substring(toLower(concat('fa-', parameters('FunctionName'), '-', variables('HashName') )),0,31)]",
+        "StgActName"     : "[concat(toLower(subtring(parameters('FunctionName'), variables('HashName'),0,21), 'sa')]",
         "StgCntName"     : "[concat(toLower(substring(variables('FunctionName'), 3, 28)), '-2blob')]",
         "KeyVaultName"   : "[concat(substring(        variables('FunctionName'), 3, 20) , '-kv')]",
         "EvtGridSubName" : "[concat(substring(        variables('FunctionName'), 3, 28) , '-EvtSub')]",
