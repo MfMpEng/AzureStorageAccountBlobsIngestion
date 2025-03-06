@@ -17,18 +17,21 @@
             }
         },
         "WorkspaceResourceId": {
+            "defaultValue": "/subscriptions/WORKSPACEID/resourcegroups/RESOURCEGROUPNAME/providers/microsoft.operationalinsights/workspaces/LAWORKSPACENAME",
             "type": "string",
             "metadata": {
                 "description": "Specifies the Azure Log Analytics Workspace resourceId. Copy from Sentinel LA workspace overview - view json"
             }
         },
         "WorkspaceId": {
+            "defaultValue": "88888888-4444-4444-4444-121212121212",
             "type": "string",
             "metadata": {
                 "description": "Specifies the Azure Log Analytics Workspace Id."
             }
         },
         "WorkspaceKey": {
+            "defaultValue": "secret",
             "type": "securestring",
             "metadata": {
                 "description": "Specifies the Azure Log Analytics Workspace Key."
