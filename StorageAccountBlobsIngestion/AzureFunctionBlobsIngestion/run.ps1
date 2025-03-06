@@ -14,12 +14,25 @@
     1.0.0 Inital release of code
 #>
 Import-Module Az.Accounts
-Import-Module Az.Accounts
 # Input bindings are passed in via param block.
-param([object] $QueueItem, $TriggerMetadata)
+# param([object] $QueueItem, $TriggerMetadata)
+
+
 # Get the current universal time in the default string format.
+# unused.
 #$currentUTCtime = (Get-Date).ToUniversalTime()
 
+# set queueitem as string per Clippy.
+param([string] $QueueItem, $TriggerMetadata)
+
+# Write out the queue message and metadata to the information log.
+Write-Host "PowerShell queue trigger function processed work item: $QueueItem"
+Write-Host "Queue item expiration time: $($TriggerMetadata.ExpirationTime)"
+Write-Host "Queue item insertion time: $($TriggerMetadata.InsertionTime)"
+Write-Host "Queue item next visible time: $($TriggerMetadata.NextVisibleTime)"
+Write-Host "ID: $($TriggerMetadata.Id)"
+Write-Host "Pop receipt: $($TriggerMetadata.PopReceipt)"
+Write-Host "Dequeue count: $($TriggerMetadata.DequeueCount)"
 
 #####Environment Variables
 $AzureWebJobsStorage = $env:AzureWebJobsStorage
