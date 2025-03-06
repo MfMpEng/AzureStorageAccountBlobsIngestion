@@ -44,8 +44,8 @@
         }
     },
     "variables": {
-        "HashName"       : "[concat(uniqueString(resourceGroup().id), uniqueString(subscription().id))]",
-        "FunctionName"   : "[substring(toLower(concat('fa-', parameters('FunctionName'), '-', variables('HashName') )),0,31)]",
+        "HashName"       : "[concat( uniqueString(resourceGroup().id), uniqueString(subscription().id) )]",
+        "FunctionName"   : "[substring( toLower(concat( 'fa-', parameters('FunctionName'), '-', variables('HashName') )) ,0,31)]",
         "StgActName"     : "[concat(toLower(subtring(parameters('FunctionName'), variables('HashName'),0,21), 'sa')]",
         "StgCntName"     : "[concat(toLower(substring(variables('FunctionName'), 3, 28)), '-2blob')]",
         "KeyVaultName"   : "[concat(substring(        variables('FunctionName'), 3, 20) , '-kv')]",
