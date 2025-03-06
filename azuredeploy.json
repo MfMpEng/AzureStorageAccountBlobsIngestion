@@ -16,6 +16,12 @@
                 "description": "Specifies the name of the Log Analytics table to ingest into. Batteries not included."
             }
         },
+        "WorkspaceResourceId": {
+            "type": "string",
+            "metadata": {
+                "description": "Specifies the Azure Log Analytics Workspace resourceId. Copy from Sentinel LA workspace overview - view json"
+            }
+        },
         "WorkspaceId": {
             "type": "string",
             "metadata": {
@@ -374,7 +380,9 @@
                 "Application_Type": "web",
                 "ApplicationId": "[variables('FunctionName')]",
                 "ImmediatePurgeDataOn30Days": true,
-                "RetentionInDays": 30
+                "RetentionInDays": 30,
+                "WorkspaceResourceId": "[parameters('FunctionName')]"
+
             }
         }
     ]
