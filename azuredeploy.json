@@ -331,10 +331,10 @@
         {
             "type": "Microsoft.Web/sites/config",
             "apiVersion": "2024-04-01",
-            "name": "[concat(parameters('sites_fa_f5dcwafseclogs_pcqptrqofrcua_name'), '/web')]",
-            "location": "East US",
+            "name": "[concat('sites_', variables('FunctionName'), '/web')]",
+            "location": "[resourceGroup().location]",
             "dependsOn": [
-                "[resourceId('Microsoft.Web/sites', parameters('sites_fa_f5dcwafseclogs_pcqptrqofrcua_name'))]"
+                "[concat('Microsoft.Web/sites/', variables('FunctionName'))]"
             ],
                 "netFrameworkVersion": "v4.0",
                 "powerShellVersion": "7.4",
