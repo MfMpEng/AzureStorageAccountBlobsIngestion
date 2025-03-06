@@ -381,7 +381,7 @@
                 "ApplicationId": "[variables('FunctionName')]",
                 "ImmediatePurgeDataOn30Days": true,
                 "RetentionInDays": 30,
-                "WorkspaceResourceId": "[parameters('FunctionName')]"
+                "WorkspaceResourceId": "[parameters('WorkspaceResourceId')]"
 
             }
         }
