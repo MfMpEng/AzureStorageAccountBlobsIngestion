@@ -381,7 +381,7 @@
                 "tenantId": "[subscription().tenantId]",
                 "accessPolicies": [
                     {
-                        "objectId": "[reference(resourceId('Microsoft.Web/sites', variables('FunctionName')),'2024-04-01', 'full').identity.principalId]",
+                        "objectId": "[reference(resourceId('Microsoft.Web/sites', variables('AppSvcPlanName')),'2024-04-01', 'full').identity.principalId]",
                         "tenantId": "[subscription().tenantId]",
                         "permissions": {
                             "secrets": [
@@ -472,7 +472,7 @@
                 "fullyQualifiedDomainNames": [],
                 "subscriptions": [
                     {
-
+                        "id": "[subscription().id]"
                     }
                 ],
                 "emailAddresses": [],
