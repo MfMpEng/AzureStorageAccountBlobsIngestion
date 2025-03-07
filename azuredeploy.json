@@ -50,6 +50,7 @@
         "AppSvcPlanName" : "[concat(variables('FunctionName'),'-AppSvcPlan')]",
         "StgCntName"     : "[concat(substring(toLower(variables('FunctionName')), 3, 28), '-2blob')]",
         "KeyVaultName"   : "[concat(substring(        variables('FunctionName'), 3, 20) , '-kv')]",
+        "NetSecPerimName": "[concat(substring(        variables('FunctionName'), 3, 20) , '-NSP')]",
         "EvtGridSubName" : "[concat(substring(        variables('FunctionName'), 3, 28) , '-EvtSub')]",
         "EGSTopicName"   : "[concat(substring(        variables('FunctionName'), 3, 28) , '-EvtGrid')]",
         "AppInsightsName": "[concat(substring(        variables('FunctionName'), 3, 28) , '-webApInsgt')]",
@@ -426,27 +427,27 @@
         {
             "type": "Microsoft.Network/networkSecurityPerimeters",
             "apiVersion": "2023-08-01-preview",
-            "name": "[parameters('name')]",
+            "name": "[variables('NetSecPerimName')]",
             "location": "eastus",
             "properties": {}
         },
         {
             "type": "Microsoft.Network/networkSecurityPerimeters/profiles",
             "apiVersion": "2023-08-01-preview",
-            "name": "[concat(parameters('name'), '/defaultProfile')]",
+            "name": "[concat(variables('NetSecPerimName'), '/defaultProfile')]",
             "location": "eastus",
             "dependsOn": [
-                "[resourceId('Microsoft.Network/networkSecurityPerimeters', parameters('name'))]"
+                "[resourceId('Microsoft.Network/networkSecurityPerimeters', variables('NetSecPerimName'))]"
             ],
             "properties": {}
         },
         {
             "type": "Microsoft.Network/networkSecurityPerimeters/profiles/accessRules",
             "apiVersion": "2023-08-01-preview",
-            "name": "[concat(parameters('name'), '/defaultProfile/AllowF5DistributedCloud')]",
+            "name": "[concat(variables('NetSecPerimName'), '/defaultProfile/AllowF5DistributedCloud')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Network/networkSecurityPerimeters/profiles', parameters('name'), 'defaultProfile')]",
-                "[resourceId('Microsoft.Network/networkSecurityPerimeters', parameters('name'))]"
+                "[resourceId('Microsoft.Network/networkSecurityPerimeters/profiles', variables('NetSecPerimName'), 'defaultProfile')]",
+                "[resourceId('Microsoft.Network/networkSecurityPerimeters', variables('NetSecPerimName'))]"
             ],
             "properties": {
                 "direction": "Inbound",
@@ -460,10 +461,10 @@
         {
             "type": "Microsoft.Network/networkSecurityPerimeters/profiles/accessRules",
             "apiVersion": "2023-08-01-preview",
-            "name": "[concat(parameters('name'), '/defaultProfile/AllowSub')]",
+            "name": "[concat(variables('NetSecPerimName'), '/defaultProfile/AllowSub')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Network/networkSecurityPerimeters/profiles', parameters('name'), 'defaultProfile')]",
-                "[resourceId('Microsoft.Network/networkSecurityPerimeters', parameters('name'))]"
+                "[resourceId('Microsoft.Network/networkSecurityPerimeters/profiles', variables('NetSecPerimName'), 'defaultProfile')]",
+                "[resourceId('Microsoft.Network/networkSecurityPerimeters', variables('NetSecPerimName'))]"
             ],
             "properties": {
                 "direction": "Inbound",
