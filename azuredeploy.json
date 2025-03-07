@@ -261,11 +261,11 @@
         {
             "type": "Microsoft.Web/serverfarms",
             "apiVersion": "2024-04-01",
-            "name": "[variables('FunctionAppName')]",
+            "name": "[variables('FunctionName')]",
             "kind": "functionapp",
             "location": "[resourceGroup().location]",
             "properties": {
-                "name": "[variables('FunctionAppName')]",
+                "name": "[variables('FunctionName')]",
                 "numberOfWorkers": "1",
                 "workerSize": "0",
                 "workerSizeId": "0"
@@ -278,15 +278,15 @@
         {
             "type": "Microsoft.Web/sites",
             "apiVersion": "2024-04-01",
-            "name": "[variables('FunctionAppName')]",
+            "name": "[variables('FunctionName')]",
             "identity": {
                 "type": "SystemAssigned"
             },
             "kind": "functionapp",
             "location": "[resourceGroup().location]",
             "properties": {
-                "name": "[variables('FunctionAppName')]",
-                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('FunctionAppName'))]",
+                "name": "[variables('FunctionName')]",
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('FunctionName'))]",
                 "siteConfig": {
                     "alwaysOn": false,
                     "httpsOnly": true,
@@ -323,7 +323,7 @@
             },
             "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('StgActName')))]",
-                "[resourceId('Microsoft.Web/serverfarms', variables('FunctionAppName'))]",
+                "[resourceId('Microsoft.Web/serverfarms', variables('FunctionName'))]",
                 "[resourceId('Microsoft.Insights/components', variables('AppInsightsName'))]"
             ],
             "resources": [
@@ -332,7 +332,7 @@
                     "type": "config",
                     "name": "appsettings",
                     "dependsOn": [
-                        "[concat('Microsoft.Web/sites/', variables('FunctionAppName'))]",
+                        "[concat('Microsoft.Web/sites/', variables('FunctionName'))]",
                         "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('KeyVaultName'), variables('LAWorkspaceKey'))]"
                     ],
                     "properties": {
@@ -355,7 +355,7 @@
         },
         {
             "type": "Microsoft.Web/sites/extensions",
-            "name": "[concat(variables('FunctionAppName'), '/ZipDeploy')]",
+            "name": "[concat(variables('FunctionName'), '/ZipDeploy')]",
             "apiVersion": "2024-04-01",
             "properties": {
                 "packageUri": "https://github.com/MfMpEng/AzureStorageAccountBlobsIngestion/blob/main/StorageAccountBlobsIngestion/AzureFunctionBlobsIngestion.zip?raw=true"
@@ -381,13 +381,13 @@
             "name": "[variables('KeyVaultName')]",
             "location": "[resourceGroup().location]",
             "dependsOn": [
-                "[resourceId('Microsoft.Web/sites', variables('FunctionAppName'))]"
+                "[resourceId('Microsoft.Web/sites', variables('FunctionName'))]"
             ],
             "properties": {
                 "tenantId": "[subscription().tenantId]",
                 "accessPolicies": [
                     {
-                        "objectId": "[reference(resourceId('Microsoft.Web/sites', variables('FunctionAppName')),'2024-04-01', 'full').identity.principalId]",
+                        "objectId": "[reference(resourceId('Microsoft.Web/sites', variables('FunctionName')),'2024-04-01', 'full').identity.principalId]",
                         "tenantId": "[subscription().tenantId]",
                         "permissions": {
                             "secrets": [
