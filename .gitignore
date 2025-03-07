@@ -1,3 +1,6 @@
 __azurite_db_blob__.json
 __azurite_db_blob_extent__.json
-.vscode
+.vscode/extensions.json
+.vscode/launch.json
+.vscode/settings.json
+.vscode/tasks.json

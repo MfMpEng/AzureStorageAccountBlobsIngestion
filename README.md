@@ -1,9 +1,10 @@
-More templated 4-year revamp, and totally untested, unhinged fork of (./images/LogsIngestionFlow.PNG)(https://github.com/sreedharande/AzureStorageAccountBlobsIngestion)
+More templated 4-year revamp, and totally untested, unhinged fork of [Sreedhar Ande's AzureStorageAccountBlobsIngestion](https://github.com/sreedharande/AzureStorageAccountBlobsIngestion)
 
+![Log Ingestion Flow](./images/LogsIngestionFlow.PNG)
 # Storage Account Blobs to Azure Sentinel
-This custom Azure Sentinel Data connector ingests Azure Storage Account Blobs to Azure Sentinel
+This custom Azure Sentinel Data connector ingests Azure Storage Account Blobs to Azure Sentinel via powershell function app.
 
-![LogsIngestionFlow](./images/LogsIngestionFlow2.PNG)
+![Log Ingetsion Flow](./images/LogsIngestionFlow2.PNG)
 
 ## **Pre-requisites**
 
