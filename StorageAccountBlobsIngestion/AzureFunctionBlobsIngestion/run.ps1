@@ -1,10 +1,10 @@
 <#
     Title:          Azure Sentinel Log Ingestion - Process Log Queue Messages
     Language:       PowerShell
-    Version:        1.0.0
-    Author(s):      Sreedhar Ande
-    Last Modified:  2021-03-09
-    Comment:        Inital Build
+    Version:        1.1.0
+    Author(s):      Sreedhar Ande, MF@CF
+    Last Modified:  2025-03-07
+    Comment:        Rebased Build
 
 
     DESCRIPTION
@@ -12,18 +12,19 @@
 
     CHANGE HISTORY
     1.0.0 Inital release of code
+    1.1.0 Spec change? required mods
 #>
 
 # Input bindings are passed in via param block.
-# param([object] $QueueItem, $TriggerMetadata)
+param([object] $QueueItem, $TriggerMetadata)
 
 
 # Get the current universal time in the default string format.
 # unused.
 #$currentUTCtime = (Get-Date).ToUniversalTime()
 
-# set queueitem as string per Clippy.
-param([string] $QueueItem, $TriggerMetadata)
+# unset queueitem as string, per Clippy. back to object.
+#param([string] $QueueItem, $TriggerMetadata)
 
 # Write out the queue message and metadata to the information log.
 Write-Host "PowerShell queue trigger function processed work item: $QueueItem"
@@ -42,6 +43,17 @@ $Workspacekey = $env:LogAnalyticsWorkspaceKey
 $LATableName = $env:LATableName
 $LAURI = $env:LAURI
 
+# per doc, Log-Type must be alpha, which might mean custom_CL targets wont work?
+# https://learn.microsoft.com/en-us/rest/api/loganalytics/create-request
+# function Remove-NumeralsAndSpecialChars {
+#     param (
+#         [string]$inputString
+#     )
+#     $outputString = $inputString -replace '[^a-zA-Z]', ''
+#     return $outputString
+# }
+# $sanitizedLATable = Remove-NumeralsAndSpecialChars($LATableName)
+
 Write-Output "LAURI : $LAURI"
 
 if($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-Z\.]+)$')
@@ -57,7 +69,7 @@ Function Write-OMSLogfile {
     .DESCRIPTION
     Given a  value pair hash table, this function will write the data to an OMS Log Analytics workspace.
     Certain variables, such as Customer ID and Shared Key are specific to the OMS workspace data is being written to.
-    This function will not write to multiple OMS workspaces.  BuildSignature and post-analytics function from Microsoft documentation
+    This function will not write to multiple OMS workspaces.  Build-Signature and post-analytics function from Microsoft documentation
     at https://docs.microsoft.com/azure/log-analytics/log-analytics-data-collector-api
     .PARAMETER DateTime
     date and time for the log.  DateTime value
@@ -89,14 +101,16 @@ Function Write-OMSLogfile {
         [Parameter(Mandatory = $true, Position = 4)]
         [string]$SharedKey
     )
+    $convertedDatetime = [datetime]::ParseExact($datetime, 'M/d/yyyy h:mm:ss tt', $null).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
     Write-Verbose -Message "DateTime: $dateTime"
+    Write-Verbose -Message "DateTimeZone(TimeGenerated): $convertedDateTime"
     Write-Verbose -Message ('DateTimeKind:' + $dateTime.kind)
     Write-Verbose -Message "Type: $type"
     write-Verbose -Message "LogData: $logdata"
 
     # Supporting Functions
     # Function to create the auth signature
-    Function BuildSignature ($CustomerID, $SharedKey, $Date, $ContentLength, $method, $ContentType, $resource) {
+    Function Build-Signature ($CustomerID, $SharedKey, $Date, $ContentLength, $method, $ContentType, $resource) {
         $xheaders = 'x-ms-date:' + $Date
         $stringToHash = $method + "`n" + $contentLength + "`n" + $contentType + "`n" + $xHeaders + "`n" + $resource
         $bytesToHash = [text.Encoding]::UTF8.GetBytes($stringToHash)
@@ -109,13 +123,13 @@ Function Write-OMSLogfile {
         return $authorization
     }
     # Function to create and post the request
-    Function PostLogAnalyticsData ($CustomerID, $SharedKey, $Body, $Type) {
+    Function Submit-LogAnalyticsData ($CustomerID, $SharedKey, $Body, $Type) {
         $method = "POST"
         $ContentType = 'application/json'
         $resource = '/api/logs'
         $rfc1123date = ($dateTime).ToString('r')
         $ContentLength = $Body.Length
-        $signature = BuildSignature `
+        $signature = Build-Signature `
             -customerId $CustomerID `
             -sharedKey $SharedKey `
             -date $rfc1123date `
@@ -131,7 +145,7 @@ Function Write-OMSLogfile {
             "Authorization"        = $signature;
             "Log-Type"             = $type;
             "x-ms-date"            = $rfc1123date
-            "time-generated-field" = $dateTime
+            "time-generated-field" = $convertedDatetime;
         }
         $response = Invoke-WebRequest -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $Body -UseBasicParsing
         Write-Verbose -message ('Post Function Return Code ' + $response.statuscode)
@@ -154,12 +168,12 @@ Function Write-OMSLogfile {
     Write-Verbose -Message $logMessage
 
     #Submit the data
-    $returnCode = PostLogAnalyticsData -CustomerID $CustomerID -SharedKey $SharedKey -Body $logMessage -Type $type
+    $returnCode = Submit-LogAnalyticsData -CustomerID $CustomerID -SharedKey $SharedKey -Body $logMessage -Type $type
     Write-Verbose -Message "Post Statement Return Code $returnCode"
     return $returnCode
 }
 
-Function SendToLogA ($corejson, $customLogName) {
+Function Write-LawTableEntry ($corejson, $customLogName) {
     #Test Size; Log A limit is 30MB
     $tempdata = @()
     $tempDataSize = 0
@@ -189,7 +203,7 @@ Function SendToLogA ($corejson, $customLogName) {
 #Build the JSON file
 $QueueMsg = ConvertTo-Json $QueueItem -Depth 5 -Compress
 
-$LAPostResult = SendToLogA -Corejson $QueueMsg -CustomLogName $LATableName
+$LAPostResult = Write-LawTableEntry -Corejson $QueueMsg -CustomLogName $LATable #$sanitizedLATable
 
 if($LAPostResult -eq 200) {
     Write-Output ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table")
