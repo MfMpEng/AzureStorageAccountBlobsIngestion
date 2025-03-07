@@ -224,7 +224,7 @@
             "kind": "functionapp",
             "location": "[resourceGroup().location]",
             "properties": {
-                "name": "[variables('FunctionName')]",
+                "name": "[variables('AppSvcPlanName')]",
                 "numberOfWorkers": "1",
                 "workerSize": "0",
                 "workerSizeId": "0"
