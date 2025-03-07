@@ -322,9 +322,9 @@
                 }
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('StgActName')))]",
                 "[resourceId('Microsoft.Web/serverfarms', variables('FunctionName'))]",
-                "[resourceId('Microsoft.Insights/components', variables('AppInsightsName'))]"
+                "[resourceId('Microsoft.Insights/components', variables('AppInsightsName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('StgActName')))]"
             ],
             "resources": [
                 {
@@ -362,7 +362,8 @@
             },
             "dependsOn": [
                 "[resourceId('Microsoft.Web/serverfarms', variables('FunctionName'))]",
-                "[concat('Microsoft.Web/sites/', variables('FunctionName'))]"
+                "[concat('Microsoft.Web/sites/', variables('FunctionName'))]",
+                "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('KeyVaultName'), variables('LAWorkspaceKey'))]"
             ]
         },
         {
@@ -478,7 +479,8 @@
             "name": "[concat(variables('NetSecPerimName'), '/NSP2SA')]",
             "dependsOn": [
                 "[resourceId('Microsoft.Network/networkSecurityPerimeters', variables('NetSecPerimName'))]",
-                "[resourceId('Microsoft.Network/networkSecurityPerimeters/profiles', variables('NetSecPerimName'), 'defaultProfile')]"
+                "[resourceId('Microsoft.Network/networkSecurityPerimeters/profiles', variables('NetSecPerimName'), 'defaultProfile')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('StgActName')))]"
             ],
             "properties": {
                 "privateLinkResource": {
@@ -496,7 +498,8 @@
             "name": "[concat(variables('NetSecPerimName'), '/NSP2KV')]",
             "dependsOn": [
                 "[resourceId('Microsoft.Network/networkSecurityPerimeters', variables('NetSecPerimName'))]",
-                "[resourceId('Microsoft.Network/networkSecurityPerimeters/profiles', variables('NetSecPerimName'), 'defaultProfile')]"
+                "[resourceId('Microsoft.Network/networkSecurityPerimeters/profiles', variables('NetSecPerimName'), 'defaultProfile')]",
+                "[resourceId('Microsoft.KeyVault/vaults/', variables('KeyVaultName'))]"
             ],
             "properties": {
                 "privateLinkResource": {
