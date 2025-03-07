@@ -291,7 +291,7 @@
                     "type": "config",
                     "name": "appsettings",
                     "dependsOn": [
-                        "[concat('Microsoft.Web/sites/', variables('FunctionName'))]",
+                        "[concat('Microsoft.Web/sites/', variables('AppSvcPlanName'))]",
                         "[resourceId('Microsoft.KeyVault/vaults/secrets', variables('KeyVaultName'), variables('LAWorkspaceKey'))]"
                     ],
                     "properties": {
