@@ -36,8 +36,8 @@ Write-Host "Dequeue count: $($TriggerMetadata.DequeueCount)"
 
 #####Environment Variables
 $AzureWebJobsStorage = $env:AzureWebJobsStorage
-$AzureQueueName = $env:StorageQueueName
-$WorkspaceId = $env:WorkspaceID
+$AzureQueueName = $env:StgQueueName
+$WorkspaceId = $env:WorkspaceId
 $Workspacekey = $env:LogAnalyticsWorkspaceKey
 $LATableName = $env:LATableName
 $LAURI = $env:LAURI
