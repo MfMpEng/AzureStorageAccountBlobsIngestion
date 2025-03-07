@@ -237,14 +237,14 @@
         {
             "type": "Microsoft.Web/sites",
             "apiVersion": "2024-04-01",
-            "name": "[variables('FunctionName')]",
+            "name": "[variables('AppSvcPlanName')]",
             "identity": {
                 "type": "SystemAssigned"
             },
             "kind": "functionapp",
             "location": "[resourceGroup().location]",
             "properties": {
-                "name": "[variables('FunctionName')]",
+                "name": "[variables('AppSvcPlanName')]",
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('AppSvcPlanName'))]",
                 "siteConfig": {
                     "alwaysOn": false,
