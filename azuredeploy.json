@@ -407,7 +407,7 @@
                 "enableSoftDelete": true,
                 "networkAcls": {
                     "bypass": "AzureServices",
-                    "defaultAction": "deny",
+                    "defaultAction": "allow",
                     "ipRules": [],
                     "virtualNetworkRules": []
                 }
