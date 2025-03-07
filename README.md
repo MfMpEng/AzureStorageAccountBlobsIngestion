@@ -1,9 +1,9 @@
-More templated 4-year revamp, and totally untested, unhinged fork of ![Sreedhar Ande@MSFT project](https://github.com/sreedharande/AzureStorageAccountBlobsIngestion)
+More templated 4-year revamp, and totally untested, unhinged fork of ![Sreedhar Ande@MSFT project](./images/LogsIngestionFlow.PNG)(https://github.com/sreedharande/AzureStorageAccountBlobsIngestion)
 
 # Storage Account Blobs to Azure Sentinel
 This custom Azure Sentinel Data connector ingests Azure Storage Account Blobs to Azure Sentinel
 
-![LogsIngestionFlow](./images/LogsIngestionFlow.PNG)
+![LogsIngestionFlow](./images/LogsIngestionFlow2.PNG)
 
 ## **Pre-requisites**
 
@@ -17,15 +17,16 @@ This custom Azure Sentinel Data connector ingests Azure Storage Account Blobs to
 
 3. Enter the following value in the ARM template deployment
 	```
-	"Function App Name": Describe the datasource only - ARM template labels resources accordingly.
-	"LA Table Name"    : Custom log table that fits the schema of the incoming log source.
-	"Workspace Id"     : Azure Log Analytics Workspace Id​
-	"Workspace Key"    : Azure Log Analytics Workspace Key
+	"Function App Name"    : Describe datasource only - Template labels resources accordingly.
+	"LA Table Name"        : Custom log table that fits the schema of the incoming log source.
+	"Workspace Resource Id": Azure Log Analytics Resource Id​  (View json -> Copy)
+	"Workspace Id"         : Azure Log Analytics Workspace Id​ (in the above string)
+	"Workspace Key"        : Azure Log Analytics Workspace Key
 	```
 
 ## Details
 1. Write a Log Analytics Workspace table into the target Sentinel that fits the schema of the logs being ingested. Vendor may have json available to quickly convert into ARM format.
 2. This package creates an Azure Storage Account called ```<<Function App Name>>-sa``` and ```<<functionAppName>>-2Blob``` Container. Send source logs here.
 3. Function app is a persistent powershell env orchestrating ingestion based on Event Grid Subscription to SA writes, triggering log ingestion procedure on Container Blobs.
-4. ???????????????????????????????
+4. Add your
 5. PROFIT!!!

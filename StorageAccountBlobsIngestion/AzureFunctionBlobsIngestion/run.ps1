@@ -13,7 +13,7 @@
     CHANGE HISTORY
     1.0.0 Inital release of code
 #>
-Import-Module Az.Accounts
+
 # Input bindings are passed in via param block.
 # param([object] $QueueItem, $TriggerMetadata)
 
