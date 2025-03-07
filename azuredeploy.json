@@ -467,6 +467,42 @@
                 "emailAddresses": [],
                 "phoneNumbers": []
             }
+        },
+        {
+            "type": "Microsoft.Network/networkSecurityPerimeters/resourceAssociations",
+            "apiVersion": "2023-08-01-preview",
+            "name": "[concat(variables('NetSecPerimName'), '/association1')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityPerimeters', variables('NetSecPerimName'))]",
+                "[resourceId('Microsoft.Network/networkSecurityPerimeters/profiles', variables('NetSecPerimName'), 'defaultProfile')]"
+            ],
+            "properties": {
+                "privateLinkResource": {
+                    "id": "[variables('StgActName')]"
+                },
+                "profile": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityPerimeters/profiles', variables('NetSecPerimName'), 'defaultProfile')]"
+                },
+                "accessMode": "Learning"
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkSecurityPerimeters/resourceAssociations",
+            "apiVersion": "2023-08-01-preview",
+            "name": "[concat(variables('NetSecPerimName'), '/association1')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityPerimeters', variables('NetSecPerimName'))]",
+                "[resourceId('Microsoft.Network/networkSecurityPerimeters/profiles', variables('NetSecPerimName'), 'defaultProfile')]"
+            ],
+            "properties": {
+                "privateLinkResource": {
+                    "id": "[variables('KeyVaultName')]"
+                },
+                "profile": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityPerimeters/profiles', variables('NetSecPerimName'), 'defaultProfile')]"
+                },
+                "accessMode": "Learning"
+            }
         }
     ]
 }
