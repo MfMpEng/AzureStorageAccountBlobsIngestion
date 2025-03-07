@@ -245,7 +245,7 @@
             "location": "[resourceGroup().location]",
             "properties": {
                 "name": "[variables('FunctionName')]",
-                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('FunctionName'))]",
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('AppSvcPlanName'))]",
                 "siteConfig": {
                     "alwaysOn": false,
                     "httpsOnly": true,
@@ -282,7 +282,7 @@
             },
             "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('StgActName')))]",
-                "[resourceId('Microsoft.Web/serverfarms', variables('FunctionName'))]",
+                "[resourceId('Microsoft.Web/serverfarms', variables('AppSvcPlanName'))]",
                 "[resourceId('Microsoft.Insights/components', variables('AppInsightsName'))]"
             ],
             "resources": [
