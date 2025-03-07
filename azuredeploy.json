@@ -46,7 +46,7 @@
     "variables": {
         "HashName"       : "[concat(uniqueString(resourceGroup().id), uniqueString(subscription().id))]",
         "FunctionName"   : "[substring(toLower(concat('fa-', parameters('FunctionName'), '-', variables('HashName') )) ,0,31)]",
-        "StgActName"     : "[concat(toLower(substring(parameters('FunctionName'),0,21)) ,'sa')]",
+        "StgActName"     : "[concat( substring( toLower( parameters('FunctionName')) , 0, 21) ,'sa')]",
         "StgCntName"     : "[concat(substring(toLower(variables('FunctionName')), 3, 28), '-2blob')]",
         "KeyVaultName"   : "[concat(substring(        variables('FunctionName'), 3, 20) , '-kv')]",
         "EvtGridSubName" : "[concat(substring(        variables('FunctionName'), 3, 28) , '-EvtSub')]",
