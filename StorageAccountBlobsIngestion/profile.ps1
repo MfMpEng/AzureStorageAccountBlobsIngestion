@@ -16,6 +16,7 @@ if ($env:MSI_SECRET) {
     Connect-AzAccount -Identity
 }
 Import-Module Az.Accounts
+Import-Module Az.Storage
 # Uncomment the next line to enable legacy AzureRm alias in Azure PowerShell.
 # Enable-AzureRmAlias
 
