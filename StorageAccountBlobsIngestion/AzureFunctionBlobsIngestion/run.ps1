@@ -14,7 +14,7 @@
     1.0.0 Inital release of code
     1.1.0 Spec change? required mods
 #>
-$VerbosePreference = "Continue"
+# $VerbosePreference = "Continue"
 
 # Input bindings are passed in via param block.
 param([object] $QueueItem, $TriggerMetadata)
@@ -26,13 +26,13 @@ param([object] $QueueItem, $TriggerMetadata)
 #$currentUTCtime = (Get-Date).ToUniversalTime()
 
 # Write out the queue message and metadata to the information log.
-Write-Host "PowerShell queue trigger function processed work item: $QueueItem"
-Write-Host "Queue item expiration time: $($TriggerMetadata.ExpirationTime)"
-Write-Host "Queue item insertion time: $($TriggerMetadata.InsertionTime)"
-Write-Host "Queue item next visible time: $($TriggerMetadata.NextVisibleTime)"
-Write-Host "ID: $($TriggerMetadata.Id)"
-Write-Host "Pop receipt: $($TriggerMetadata.PopReceipt)"
-Write-Host "Dequeue count: $($TriggerMetadata.DequeueCount)"
+Write-Verbose "PowerShell queue trigger function processed work item: $QueueItem"
+Write-Verbose "Queue item expiration time: $($TriggerMetadata.ExpirationTime)"
+Write-Verbose "Queue item insertion time: $($TriggerMetadata.InsertionTime)"
+Write-Verbose "Queue item next visible time: $($TriggerMetadata.NextVisibleTime)"
+Write-Verbose "ID: $($TriggerMetadata.Id)"
+Write-Verbose "Pop receipt: $($TriggerMetadata.PopReceipt)"
+Write-Verbose "Dequeue count: $($TriggerMetadata.DequeueCount)"
 
 #####Environment Variables
 $AzureWebJobsStorage = $env:AzureWebJobsStorage
@@ -105,7 +105,7 @@ Function Write-OMSLogfile {
     Write-Verbose -Message "DateTimeZone(TimeGenerated): $convertedDateTime"
     Write-Verbose -Message ('DateTimeKind:' + $dateTime.kind)
     Write-Verbose -Message "Type: $type"
-    write-Verbose -Message "LogData: $logdata"
+    Write-Verbose -Message "LogData: $logdata"
 
     # Supporting Functions
     # Function to create the auth signature
@@ -146,7 +146,7 @@ Function Write-OMSLogfile {
             "x-ms-date"            = $rfc1123date
             "time-generated-field" = $convertedDatetime;
         }
-        $response = Invoke-WebRequest -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $Body -UseBasicParsing
+        $response = Invoke-WebRequest -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $Body -UseBasicParsing -Verbose
         Write-Verbose -message ('Post Function Return Code ' + $response.statuscode)
         return $response.statuscode
     }
@@ -155,7 +155,7 @@ Function Write-OMSLogfile {
     # $dateTime = (Get-Date)
     if ($dateTime.kind.tostring() -ne 'Utc') {
         $dateTime = $dateTime.ToUniversalTime()
-        Write-Verbose -Message $dateTime
+        Write-Verbose -Message ('UTC Time ' + $dateTime)
     }
 
     # Add DateTime to hashtable
@@ -164,7 +164,7 @@ Function Write-OMSLogfile {
 
     #Build the JSON file
     $logMessage = ($logdata | ConvertTo-Json -Depth 20)
-    Write-Verbose -Message $logMessage
+    Write-Verbose -Message ('Log Message ' + $logMessage)
 
     #Submit the data
     $returnCode = Submit-LogAnalyticsData -CustomerID $CustomerID -SharedKey $SharedKey -Body $logMessage -Type $type -Verbose
@@ -183,7 +183,7 @@ Function Write-LawTableEntry ($corejson, $customLogName) {
             $tempdata += $record
             $tempDataSize += ($record | ConvertTo-Json -depth 20).Length
             if ($tempDataSize -gt 25MB) {
-                Write-OMSLogfile -dateTime (Get-Date) -type $customLogName -logdata $tempdata -CustomerID $workspaceId -SharedKey $workspaceKey
+                Write-OMSLogfile -dateTime (Get-Date) -type $customLogName -logdata $tempdata -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
                 write-Host "Sending data = $TempDataSize"
                 $tempdata = $null
                 $tempdata = @()

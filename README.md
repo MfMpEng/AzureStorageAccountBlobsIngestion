@@ -1,5 +1,5 @@
 More templated rennovation/work in progress/unhinged fork of
-[Sreedhar Ande's AzureStorageAccountBlobsIngestion](https://github.com/sreedharande/AzureStorageAccountBlobsIngestion)
+[Sreedhar Ande's Azure Storage Account Blobs Ingestion](https://github.com/sreedharande/AzureStorageAccountBlobsIngestion)
 
 Perhaps abandoned, resumed development, or was originally a fork of official
 [Azure Docs - Powershell samples](https://github.com/Azure/azure-docs-powershell-samples/blob/master/storage/post-storage-logs-to-log-analytics/PostStorageLogs2LogAnalytics.ps1)
@@ -28,7 +28,7 @@ This custom Azure Sentinel Data connector ingests Azure Storage Account Blobs to
 	"Function App Name"    : Describe datasource only - Deployment labels accordingly.
 	"LA Table Name"        : Custom LA Table fitting schema of log source.
 	"Workspace Resource Id": Log Analytics Resource Id​  (JSON View -> Copy)
-	"Workspace Id"         : Log Analytics Workspace Id​ (in the above string)
+	"Workspace Id"         : Log Analytics Workspace Id​ (customerId in the above json view)
 	"Workspace Key"        : Log Analytics Workspace Key
 	```
 
