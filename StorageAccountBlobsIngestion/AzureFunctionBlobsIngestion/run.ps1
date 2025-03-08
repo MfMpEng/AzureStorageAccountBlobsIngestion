@@ -100,9 +100,8 @@ Function Write-OMSLogfile {
         [Parameter(Mandatory = $true, Position = 4)]
         [string]$SharedKey
     )
-    $convertedDatetime = [datetime]::ParseExact($datetime, 'MM/dd/yyyy HH:mm:ss', $null).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+
     Write-Verbose -Message "DateTime: $dateTime"
-    Write-Verbose -Message "DateTimeZone(TimeGenerated): $convertedDateTime"
     Write-Verbose -Message ('DateTimeKind:' + $dateTime.kind)
     Write-Verbose -Message "Type: $type"
     Write-Verbose -Message "LogData: $logdata"
@@ -127,6 +126,7 @@ Function Write-OMSLogfile {
         $ContentType = 'application/json'
         $resource = '/api/logs'
         $rfc1123date = ($dateTime).ToString('r')
+        $convertedDatetime = ($datetime).ToString('yyyy-MM-ddTHH:mm:ssZ')
         $ContentLength = $Body.Length
         $signature = Build-Signature `
             -customerId $CustomerID `
@@ -143,7 +143,7 @@ Function Write-OMSLogfile {
         $headers = @{
             "Authorization"        = $signature;
             "Log-Type"             = $type;
-            "x-ms-date"            = $rfc1123date
+            "x-ms-date"            = $rfc1123date;
             "time-generated-field" = $convertedDatetime;
         }
         $response = Invoke-WebRequest -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $Body -UseBasicParsing -Verbose
@@ -172,7 +172,7 @@ Function Write-OMSLogfile {
     return $returnCode
 }
 
-Function Write-LawTableEntry ($corejson, $customLogName) {
+Function Submit-LogAnalyticsData ($corejson, $customLogName) {
     #Test Size; Log A limit is 30MB
     $tempdata = @()
     $tempDataSize = 0
@@ -200,9 +200,27 @@ Function Write-LawTableEntry ($corejson, $customLogName) {
 }
 
 #Build the JSON file
-$QueueMsg = ConvertTo-Json $QueueItem -Depth 5 -Compress -Verbose
+#$QueueMsg = ConvertTo-Json $QueueItem -Depth 5 #-Compress -Verbose
 
-$LAPostResult = Write-LawTableEntry -Verbose -Corejson $QueueMsg -CustomLogName $LATableName #$sanitizedLATable
+$QueueArr = ConvertFrom-Json $QueueItem;
+$ResourceGroup = ($QueueArr.topic -split '/')[ 4 ]
+$StorageAccountName = ($QueueArr.topic -split '/')[ -1 ]
+$ContainerName = $QueueArr.subject.split('/')[4]
+$BlobName = $QueueArr.subject.split('/')[-1]
+$BlobURL = $QueueArr.data.url;
+
+# ensure storage account exists and collect the context
+$storageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroup -Name $StorageAccountName -ErrorAction SilentlyContinue
+if ($null -eq $storageAccount) {
+    throw "The storage account specified does not exist in this subscription."
+}
+$storageContext = $storageAccount.Context
+#New-AzStorageContext -StorageAccountName $storageAccountName -UseConnectedAccount
+
+$blobContent = Get-AzStorageBlobContent -Uri $blobURL | ConvertTo-Json
+$formalizedBlob = ( [System.Text.Encoding]::UTF8.GetBytes($blobContent))
+
+$LAPostResult = Submit-LogAnalyticsData -Verbose -Corejson $formalizedBlob -CustomLogName $LATableName #$sanitizedLATable
 
 if($LAPostResult -eq 200) {
     Write-Output ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table")
@@ -210,6 +228,7 @@ if($LAPostResult -eq 200) {
     $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
     $AzureQueue = Get-AzStorageQueue -Name $AzureQueueName -Context $AzureStorage
     $Null = $AzureQueue.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)
+    Remove-AzStorageBlob -Context $context -Container $ContainerName -Blob $BlobName
     [System.GC]::collect() #cleanup memory
 }
 [System.GC]::GetTotalMemory($true) | out-null #Force full garbage collection - Powershell does not clean itself up properly in some situations
