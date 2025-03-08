@@ -1,7 +1,7 @@
 More templated rennovation/work in progress/unhinged fork of
 [Sreedhar Ande's AzureStorageAccountBlobsIngestion](https://github.com/sreedharande/AzureStorageAccountBlobsIngestion)
 
-Perhaps abandoned, resumed development, or was originally a fork of official Azure PS
+Perhaps abandoned, resumed development, or was originally a fork of official
 [Azure Docs - Powershell samples](https://github.com/Azure/azure-docs-powershell-samples/blob/master/storage/post-storage-logs-to-log-analytics/PostStorageLogs2LogAnalytics.ps1)
 
 Roots also found in [Travis Roberts' Write-OMSLogfile](https://github.com/tsrob50/LogAnalyticsAPIFunction/tree/master)
