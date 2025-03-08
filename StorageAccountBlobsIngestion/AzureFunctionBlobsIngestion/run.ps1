@@ -199,10 +199,10 @@ Function Submit-LogAnalyticsData ($corejson, $customLogName) {
     }
 }
 
-#Build the JSON file
-#$QueueMsg = ConvertTo-Json $QueueItem -Depth 5 #-Compress -Verbose
+#Build the JSON from queue
+$QueueMsg = ConvertTo-Json $QueueItem -Depth 5 #-Compress -Verbose
 
-$QueueArr = ConvertFrom-Json $QueueItem;
+$QueueArr = ConvertFrom-Json $QueueMsg;
 $ResourceGroup = ($QueueArr.topic -split '/')[ 4 ]
 $StorageAccountName = ($QueueArr.topic -split '/')[ -1 ]
 $ContainerName = $QueueArr.subject.split('/')[4]
