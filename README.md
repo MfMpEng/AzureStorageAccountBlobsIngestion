@@ -1,4 +1,4 @@
-More templated 4-year revamp, and totally untested, unhinged fork of [Sreedhar Ande's AzureStorageAccountBlobsIngestion](https://github.com/sreedharande/AzureStorageAccountBlobsIngestion)
+More templated rennovation/work in progress/unhinged fork of [Sreedhar Ande's AzureStorageAccountBlobsIngestion](https://github.com/sreedharande/AzureStorageAccountBlobsIngestion)
 
 Perhaps abandoned, then resumed development or was originally a fork of official Azure PS [azure docs powershell samples](https://github.com/Azure/azure-docs-powershell-samples/blob/master/storage/post-storage-logs-to-log-analytics/PostStorageLogs2LogAnalytics.ps1)
 
@@ -9,27 +9,26 @@ This custom Azure Sentinel Data connector ingests Azure Storage Account Blobs to
 ![Log Ingetsion Flow](./images/Flow.PNG)
 
 ## **Pre-requisites**
+1. Write a Log Analytics Workspace table into the target Sentinel that fits the schema of the logs being ingested. If either schema or sample log json available, can quick import as custom table in LA Workspace.
 
-1. Click on Deploy to Azure (For both Commercial & Azure GOV)
+2. Click on Deploy to Azure (For both Commercial & Azure GOV)
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMfMpEng%2FAzureStorageAccountBlobsIngestion%2Frefs%2Fheads%2Fmain%2Fazuredeploy.json)
 
-2. Select the preferred **Subscription**, **Resource Group** and **Location**
+3. Select the preferred **Subscription**, **Resource Group** and **Location**
    **Note**
-   Best practice : Create new Resource Group while deploying - all the resources of your custom Data connector will reside in the newly created Resource
+   Best practice : Create new Resource Group
    Suggestion    : ```<<Function App Name>>-rg```
 
-3. Enter the following value in the ARM template deployment
+4. Enter the following value in the ARM template deployment
 	```
-	"Function App Name"    : Describe datasource only - Template labels resources accordingly.
-	"LA Table Name"        : Custom log table that fits the schema of the incoming log source.
-	"Workspace Resource Id": Azure Log Analytics Resource Id​  (View json -> Copy)
-	"Workspace Id"         : Azure Log Analytics Workspace Id​ (in the above string)
-	"Workspace Key"        : Azure Log Analytics Workspace Key
+	"Function App Name"    : Describe datasource only - Deployment labels accordingly.
+	"LA Table Name"        : Custom LA Table fitting schema of log source.
+	"Workspace Resource Id": Log Analytics Resource Id​  (JSON View -> Copy)
+	"Workspace Id"         : Log Analytics Workspace Id​ (in the above string)
+	"Workspace Key"        : Log Analytics Workspace Key
 	```
 
 ## Details
-1. Write a Log Analytics Workspace table into the target Sentinel that fits the schema of the logs being ingested. Vendor may have json available to quickly convert into ARM format.
-2. This package creates an Azure Storage Account called ```<<Function App Name>>-sa``` and ```<<functionAppName>>-2Blob``` Container. Send source logs here.
-3. Function app is a persistent powershell env orchestrating ingestion based on Event Grid Subscription to SA writes, triggering log ingestion procedure on Container Blobs.
-
-5. PROFIT!!!
+1. This ARM template creates an Azure Storage Account Blob Container called ```<<functionAppName>>-2Blob```. Send source logs here.
+2. Powershell Function App orchestrates ingestion based on Event Grid Subscription Topic watching SA blob writes logged in SA Queue.
+3. Fn App triggers log ingestion procedure on Blobs; upon successful LA Workspace write then deletes the blob.
