@@ -99,7 +99,7 @@ Function Write-OMSLogfile {
         [Parameter(Mandatory = $true, Position = 4)]
         [string]$SharedKey
     )
-    $convertedDatetime = [datetime]::ParseExact($datetime, 'M/d/yyyy h:mm:ss tt', $null).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+    $convertedDatetime = [datetime]::ParseExact($datetime, 'MM/dd/yyyy HH:mm:ss', $null).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
     Write-Verbose -Message "DateTime: $dateTime"
     Write-Verbose -Message "DateTimeZone(TimeGenerated): $convertedDateTime"
     Write-Verbose -Message ('DateTimeKind:' + $dateTime.kind)
