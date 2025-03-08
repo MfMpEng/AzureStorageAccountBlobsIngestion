@@ -6,7 +6,7 @@ Perhaps abandoned, then resumed development or was originally a fork of official
 # Storage Account Blobs to Azure Sentinel
 This custom Azure Sentinel Data connector ingests Azure Storage Account Blobs to Azure Sentinel via powershell function app.
 
-![Log Ingetsion Flow](./images/LogsIngestionFlow2.PNG)
+![Log Ingetsion Flow](./images/Flow.PNG)
 
 ## **Pre-requisites**
 
