@@ -16,9 +16,9 @@
 #>
 
 # Input bindings are passed in via param block.
-#param([object] $QueueItem, $TriggerMetadata)
+param([object] $QueueItem, $TriggerMetadata)
 # set queueitem as string, per Clippy. Object type introduced regression where expected input is null.
-param([string] $QueueItem, $TriggerMetadata)
+#param([string] $QueueItem, $TriggerMetadata)
 
 # Get the current universal time in the default string format.
 # unused.
@@ -201,7 +201,7 @@ Function Write-LawTableEntry ($corejson, $customLogName) {
 #Build the JSON file
 $QueueMsg = ConvertTo-Json $QueueItem -Depth 5 -Compress
 
-$LAPostResult = Write-LawTableEntry -Corejson $QueueMsg -CustomLogName $LATable #$sanitizedLATable
+$LAPostResult = Write-LawTableEntry -Corejson $QueueMsg -CustomLogName $LATableName #$sanitizedLATable
 
 if($LAPostResult -eq 200) {
     Write-Output ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table")
