@@ -1,6 +1,10 @@
-More templated rennovation/work in progress/unhinged fork of [Sreedhar Ande's AzureStorageAccountBlobsIngestion](https://github.com/sreedharande/AzureStorageAccountBlobsIngestion)
+More templated rennovation/work in progress/unhinged fork of
+[Sreedhar Ande's AzureStorageAccountBlobsIngestion](https://github.com/sreedharande/AzureStorageAccountBlobsIngestion)
 
-Perhaps abandoned, then resumed development or was originally a fork of official Azure PS [azure docs powershell samples](https://github.com/Azure/azure-docs-powershell-samples/blob/master/storage/post-storage-logs-to-log-analytics/PostStorageLogs2LogAnalytics.ps1)
+Perhaps abandoned, resumed development, or was originally a fork of official Azure PS
+[Azure Docs - Powershell samples](https://github.com/Azure/azure-docs-powershell-samples/blob/master/storage/post-storage-logs-to-log-analytics/PostStorageLogs2LogAnalytics.ps1)
+
+Roots also found in [Travis Roberts' Write-OMSLogfile](https://github.com/tsrob50/LogAnalyticsAPIFunction/tree/master)
 
 ![Log Ingestion Flow](./images/LogsIngestionFlow.PNG)
 # Storage Account Blobs to Azure Sentinel
