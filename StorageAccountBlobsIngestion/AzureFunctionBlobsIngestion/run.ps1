@@ -16,15 +16,13 @@
 #>
 
 # Input bindings are passed in via param block.
-param([object] $QueueItem, $TriggerMetadata)
-
+#param([object] $QueueItem, $TriggerMetadata)
+# set queueitem as string, per Clippy. Object type introduced regression where expected input is null.
+param([string] $QueueItem, $TriggerMetadata)
 
 # Get the current universal time in the default string format.
 # unused.
 #$currentUTCtime = (Get-Date).ToUniversalTime()
-
-# unset queueitem as string, per Clippy. back to object.
-#param([string] $QueueItem, $TriggerMetadata)
 
 # Write out the queue message and metadata to the information log.
 Write-Host "PowerShell queue trigger function processed work item: $QueueItem"
