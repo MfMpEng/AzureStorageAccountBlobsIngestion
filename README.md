@@ -1,5 +1,7 @@
 More templated 4-year revamp, and totally untested, unhinged fork of [Sreedhar Ande's AzureStorageAccountBlobsIngestion](https://github.com/sreedharande/AzureStorageAccountBlobsIngestion)
 
+Perhaps abandoned, then resumed development or was originally a fork of official Azure PS [azure docs powershell samples](https://github.com/Azure/azure-docs-powershell-samples/blob/master/storage/post-storage-logs-to-log-analytics/PostStorageLogs2LogAnalytics.ps1)
+
 ![Log Ingestion Flow](./images/LogsIngestionFlow.PNG)
 # Storage Account Blobs to Azure Sentinel
 This custom Azure Sentinel Data connector ingests Azure Storage Account Blobs to Azure Sentinel via powershell function app.

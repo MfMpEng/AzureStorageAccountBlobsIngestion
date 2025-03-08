@@ -14,6 +14,7 @@
     1.0.0 Inital release of code
     1.1.0 Spec change? required mods
 #>
+$VerbosePreference = "Continue"
 
 # Input bindings are passed in via param block.
 param([object] $QueueItem, $TriggerMetadata)
@@ -108,16 +109,16 @@ Function Write-OMSLogfile {
 
     # Supporting Functions
     # Function to create the auth signature
-    Function Build-Signature ($CustomerID, $SharedKey, $Date, $ContentLength, $method, $ContentType, $resource) {
-        $xheaders = 'x-ms-date:' + $Date
+    Function Build-Signature ($customerId, $sharedKey, $date, $contentLength, $method, $contentType, $resource) {
+        $xHeaders = "x-ms-date:" + $date
         $stringToHash = $method + "`n" + $contentLength + "`n" + $contentType + "`n" + $xHeaders + "`n" + $resource
-        $bytesToHash = [text.Encoding]::UTF8.GetBytes($stringToHash)
-        $keyBytes = [Convert]::FromBase64String($SharedKey)
+        $bytesToHash = [Text.Encoding]::UTF8.GetBytes($stringToHash)
+        $keyBytes = [Convert]::FromBase64String($sharedKey)
         $sha256 = New-Object System.Security.Cryptography.HMACSHA256
-        $sha256.key = $keyBytes
-        $calculateHash = $sha256.ComputeHash($bytesToHash)
-        $encodeHash = [convert]::ToBase64String($calculateHash)
-        $authorization = 'SharedKey {0}:{1}' -f $CustomerID, $encodeHash
+        $sha256.Key = $keyBytes
+        $calculatedHash = $sha256.ComputeHash($bytesToHash)
+        $encodedHash = [Convert]::ToBase64String($calculatedHash)
+        $authorization = 'SharedKey {0}:{1}' -f $customerId, $encodedHash
         return $authorization
     }
     # Function to create and post the request
@@ -166,7 +167,7 @@ Function Write-OMSLogfile {
     Write-Verbose -Message $logMessage
 
     #Submit the data
-    $returnCode = Submit-LogAnalyticsData -CustomerID $CustomerID -SharedKey $SharedKey -Body $logMessage -Type $type
+    $returnCode = Submit-LogAnalyticsData -CustomerID $CustomerID -SharedKey $SharedKey -Body $logMessage -Type $type -Verbose
     Write-Verbose -Message "Post Statement Return Code $returnCode"
     return $returnCode
 }
@@ -190,22 +191,22 @@ Function Write-LawTableEntry ($corejson, $customLogName) {
             }
         }
         Write-Host "Sending left over data = $Tempdatasize"
-        Write-OMSLogfile -dateTime (Get-Date) -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey
+        Write-OMSLogfile -dateTime (Get-Date) -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
     }
     Else {
         #Send to Log A as is
-        Write-OMSLogfile -dateTime (Get-Date) -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey
+        Write-OMSLogfile -dateTime (Get-Date) -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
     }
 }
 
 #Build the JSON file
-$QueueMsg = ConvertTo-Json $QueueItem -Depth 5 -Compress
+$QueueMsg = ConvertTo-Json $QueueItem -Depth 5 -Compress -Verbose
 
-$LAPostResult = Write-LawTableEntry -Corejson $QueueMsg -CustomLogName $LATableName #$sanitizedLATable
+$LAPostResult = Write-LawTableEntry -Verbose -Corejson $QueueMsg -CustomLogName $LATableName #$sanitizedLATable
 
 if($LAPostResult -eq 200) {
     Write-Output ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table")
-      #we need to connect to the Azure Storage Queue to remove the message if we successfully process the LogFile
+    # Connect to Storage Queue to remove message on successful log processing
     $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
     $AzureQueue = Get-AzStorageQueue -Name $AzureQueueName -Context $AzureStorage
     $Null = $AzureQueue.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)
