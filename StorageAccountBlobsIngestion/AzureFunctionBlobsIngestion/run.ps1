@@ -114,7 +114,7 @@ Function Write-OMSLogfile {
         $ContentType = 'application/json'
         $resource = '/api/logs'
         $rfc1123date = (Get-Date).ToString('r')
-        $utcEvtTime = ($datetime).tostring('U').ToString('yyyy-MM-ddTHH:mm:ssZ')
+        $utcEvtTime = $datetime.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
         $ContentLength = $Body.Length
         $signature = Build-Signature `
             -customerId $CustomerID `
