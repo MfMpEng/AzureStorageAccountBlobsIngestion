@@ -27,13 +27,13 @@ Write-Verbose "PowerShell queue trigger function processed work item: $QueueItem
 # Write-Verbose "Queue item expiration time: $($TriggerMetadata.ExpirationTime)"
 # Write-Verbose "Queue item insertion time: $($TriggerMetadata.InsertionTime)"
 # Write-Verbose "Queue item next visible time: $($TriggerMetadata.NextVisibleTime)"
-# Write-Verbose "ID: $($TriggerMetadata.Id)"
-# Write-Verbose "Pop receipt: $($TriggerMetadata.PopReceipt)"
+Write-Verbose "ID: $($TriggerMetadata.Id)"
+Write-Verbose "Pop receipt: $($TriggerMetadata.PopReceipt)"
 # Write-Verbose "Dequeue count: $($TriggerMetadata.DequeueCount)"
 
 #####Environment Variables
 $AzureWebJobsStorage = $env:AzureWebJobsStorage
-$AzureQueueName = $env:StgQueueName
+# $AzureQueueName = $env:StgQueueName
 $WorkspaceId = $env:WorkspaceId
 $Workspacekey = $env:LogAnalyticsWorkspaceKey
 $LATableName = $env:LATableName
@@ -356,7 +356,7 @@ Write-Output "$evtTime Queue Reported $StorageAccountName\$ContainerName\$BlobNa
 # import-module az.storage
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
 
-$logPath = [System.IO.Path]::Combine($env:TEMP, "log.json")
+$logPath = [System.IO.Path]::Combine($env:TEMP, $BlobName)
 # Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -force > $null
 try {
     Write-Output "Attempting to download blob content..."
@@ -378,6 +378,7 @@ foreach ($log in $logsFromFile) {
         # Connect to Storage Queue to remove message on successful log processing
         # $AzureQueue = Get-AzStorageQueue -Name $AzureQueueName -Context $AzureStorage
         # $Null = $AzureQueue.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)
+        Remove-Item $logPath
         $queue.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)
         Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath
         [System.GC]::collect() #cleanup memory
