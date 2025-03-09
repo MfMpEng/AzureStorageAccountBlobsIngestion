@@ -15,24 +15,20 @@
     1.1.0 Spec change? required mods
 #>
 # $VerbosePreference = "Continue"
-
+Write-Output "######################################################################################"
+Write-Output "######################### BEGIN NEW TRANSACTION ######################################"
+Write-Output "######################################################################################"
 # Input bindings are passed in via param block.
 param([object] $QueueItem, $TriggerMetadata)
-# set queueitem as string, per Clippy. Object type introduced regression where expected input is null.
-#param([string] $QueueItem, $TriggerMetadata)
-
-# Get the current universal time in the default string format.
-# unused.
-#$currentUTCtime = (Get-Date).ToUniversalTime()
 
 # Write out the queue message and metadata to the information log.
-Write-Verbose "PowerShell queue trigger function processed work item: $QueueItem"
-Write-Verbose "Queue item expiration time: $($TriggerMetadata.ExpirationTime)"
-Write-Verbose "Queue item insertion time: $($TriggerMetadata.InsertionTime)"
-Write-Verbose "Queue item next visible time: $($TriggerMetadata.NextVisibleTime)"
-Write-Verbose "ID: $($TriggerMetadata.Id)"
-Write-Verbose "Pop receipt: $($TriggerMetadata.PopReceipt)"
-Write-Verbose "Dequeue count: $($TriggerMetadata.DequeueCount)"
+Write-Output "PowerShell queue trigger function processed work item: $QueueItem"
+# Write-Verbose "Queue item expiration time: $($TriggerMetadata.ExpirationTime)"
+# Write-Verbose "Queue item insertion time: $($TriggerMetadata.InsertionTime)"
+# Write-Verbose "Queue item next visible time: $($TriggerMetadata.NextVisibleTime)"
+# Write-Verbose "ID: $($TriggerMetadata.Id)"
+# Write-Verbose "Pop receipt: $($TriggerMetadata.PopReceipt)"
+# Write-Verbose "Dequeue count: $($TriggerMetadata.DequeueCount)"
 
 #####Environment Variables
 $AzureWebJobsStorage = $env:AzureWebJobsStorage
@@ -199,37 +195,112 @@ Function Submit-LogAnalyticsData ($corejson, $customLogName) {
     }
 }
 
-#Build the JSON from queue
-$QueueMsg = ConvertTo-Json $QueueItem -Depth 5 #-Compress -Verbose
+Function ConvertTo-JsonValue($Text) {
+    $Text1 = ""
+    if ($Text.IndexOf("`"") -eq 0) { $Text1 = $Text } else { $Text1 = "`"" + $Text + "`"" }
 
-$QueueArr = ConvertFrom-Json $QueueMsg;
-$ResourceGroup = ($QueueArr.topic -split '/')[ 4 ]
-$StorageAccountName = ($QueueArr.topic -split '/')[ -1 ]
-$ContainerName = $QueueArr.subject.split('/')[4]
-$BlobName = $QueueArr.subject.split('/')[-1]
-$BlobURL = $QueueArr.data.url;
-
-# ensure storage account exists and collect the context
-$storageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroup -Name $StorageAccountName -ErrorAction SilentlyContinue
-if ($null -eq $storageAccount) {
-    throw "The storage account specified does not exist in this subscription."
+    if ($Text1.IndexOf("%3B") -ge 0) {
+        $ReturnText = $Text1.Replace("%3B", ";")
+    }
+    else {
+        $ReturnText = $Text1
+    }
+    return $ReturnText
 }
-$storageContext = $storageAccount.Context
-#New-AzStorageContext -StorageAccountName $storageAccountName -UseConnectedAccount
 
-$blobContent = Get-AzStorageBlobContent -Uri $blobURL | ConvertTo-Json
-$formalizedBlob = ( [System.Text.Encoding]::UTF8.GetBytes($blobContent))
+Function Convert-LogLineToJson([String] $logLine) {
+    #Convert semicolon to %3B in the log line to avoid wrong split with ";"
+    $logLineEncoded = Convert-SemicolonToURLEncoding($logLine)
+    $elements = $logLineEncoded.split(';')
+    $FormattedElements = New-Object System.Collections.ArrayList
 
-$LAPostResult = Submit-LogAnalyticsData -Verbose -Corejson $formalizedBlob -CustomLogName $LATableName #$sanitizedLATable
+    foreach ($element in $elements) {
+        # Validate if the text starts with ", and add it if not
+        $NewText = ConvertTo-JsonValue($element)
 
-if($LAPostResult -eq 200) {
-    Write-Output ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table")
-    # Connect to Storage Queue to remove message on successful log processing
-    $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
-    $AzureQueue = Get-AzStorageQueue -Name $AzureQueueName -Context $AzureStorage
-    $Null = $AzureQueue.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)
-    Remove-AzStorageBlob -Context $context -Container $ContainerName -Blob $BlobName
-    [System.GC]::collect() #cleanup memory
+        # Use "> null" to avoid annoying index print in the console
+        $FormattedElements.Add($NewText) > null
+    }
+
+    $Columns =
+    (   "version-number",
+    "request-start-time",
+    "operation-type",
+    "request-status",
+    "http-status-code",
+    "end-to-end-latency-in-ms",
+    "server-latency-in-ms",
+    "authentication-type",
+    "requester-account-name",
+    "owner-account-name",
+    "service-type",
+    "request-url",
+    "requested-object-key",
+    "request-id-header",
+    "operation-count",
+    "requester-ip-address",
+    "request-version-header",
+    "request-header-size",
+    "request-packet-size",
+    "response-header-size",
+    "response-packet-size",
+    "request-content-length",
+    "request-md5",
+    "server-md5",
+    "etag-identifier",
+    "last-modified-time",
+    "conditions-used",
+    "user-agent-header",
+    "referrer-header",
+    "client-request-id"
+    )
+
+    # Propose json payload
+    $logJson = "[{";
+    For ($i = 0; $i -lt $Columns.Length; $i++) {
+        $logJson += "`"" + $Columns[$i] + "`":" + $FormattedElements[$i]
+        if ($i -lt $Columns.Length - 1) {
+            $logJson += ","
+        }
+    }
+    $logJson += "}]";
+
+    return $logJson
 }
+
+
+#Build the JSON from queue and grab blob path vars
+# $QueueMsg           = ConvertTo-Json $QueueItem -Depth 5 #-Compress -Verbose
+$QueueArr           = ConvertFrom-Json $QueueItem;
+# $ResourceGroup      = $QueueArr.topic.split('/')[4]
+$StorageAccountName = $QueueArr.topic.split('/')[-1]
+$ContainerName      = $QueueArr.subject.split('/')[4]
+$BlobName           = $QueueArr.subject.split('/')[-1]
+$BlobURL            = $QueueArr.data.url.tostring()
+Write-Output "Found $StorageAccountName\$ContainerName\$BlobName`nat $BlobURL"
+
+$AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
+
+$logPath = '.\log.json'
+Get-AzStorageBlobContent -Context $AzureStorage -Uri $blobURL -Destination $logPath -force > Null
+$logsFromFile = Get-Content -Path $logPath -raw
+
+foreach ($log in $logsFromFile) {
+    $json = Convert-LogLineToJson($log)
+    $formalizedJson = ( [System.Text.Encoding]::UTF8.GetBytes($json))
+    $LAPostResult = Submit-LogAnalyticsData -Verbose -Corejson $formalizedJson -CustomLogName $LATableName #$sanitizedLATable
+
+    if($LAPostResult -eq 200) {
+        Write-Output ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
+        # Connect to Storage Queue to remove message on successful log processing
+        $AzureQueue = Get-AzStorageQueue -Name $AzureQueueName -Context $AzureStorage
+        $Null = $AzureQueue.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)
+        Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobName
+        [System.GC]::collect() #cleanup memory
+    }
+}
+Write-Output "######################################################################################"
+Write-Output "############################ END TRANSACTION #########################################"
+Write-Output "######################################################################################"
 [System.GC]::GetTotalMemory($true) | out-null #Force full garbage collection - Powershell does not clean itself up properly in some situations
 #end of Script
