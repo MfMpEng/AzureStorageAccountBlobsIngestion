@@ -354,7 +354,7 @@ Write-Output "$evtTime Queue Reported $StorageAccountName\$ContainerName\$BlobNa
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
 
 $logPath = 'D:\home\log.json'
-Get-AzStorageBlobContent -Context $AzureStorage -Uri $blobURL -Destination $logPath -force > $null
+Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobName -Destination $logPath -force > $null
 $logsFromFile = Get-Content -Path $logPath -raw
 
 foreach ($log in $logsFromFile) {
