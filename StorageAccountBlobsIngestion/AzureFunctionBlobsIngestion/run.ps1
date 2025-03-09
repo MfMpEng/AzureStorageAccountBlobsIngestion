@@ -15,17 +15,6 @@
 param([object] $QueueItem, $TriggerMetadata)
 # $VerbosePreference = "Continue"
 # Write out the queue message and metadata to the information log.
-Write-Output "Current Directory: $(Get-Location)"
-Write-Output "######################################################################################"
-Write-Output "######################### BEGIN NEW TRANSACTION ######################################"
-Write-Output "######################################################################################"
-Write-Verbose "PowerShell queue trigger function processed work item: $QueueItem"
-# Write-Verbose "Queue item expiration time: $($TriggerMetadata.ExpirationTime)"
-# Write-Verbose "Queue item insertion time: $($TriggerMetadata.InsertionTime)"
-# Write-Verbose "Queue item next visible time: $($TriggerMetadata.NextVisibleTime)"
-Write-Verbose "ID: $($TriggerMetadata.Id)"
-Write-Verbose "Pop receipt: $($TriggerMetadata.PopReceipt)"
-# Write-Verbose "Dequeue count: $($TriggerMetadata.DequeueCount)"
 #####Environment Variables
 $AzureWebJobsStorage = $env:AzureWebJobsStorage
 $AzureQueueName = $env:StgQueueName
@@ -33,17 +22,6 @@ $WorkspaceId = $env:WorkspaceId
 $Workspacekey = $env:LogAnalyticsWorkspaceKey
 $LATableName = $env:LATableName
 $LAURI = $env:LAURI
-# per doc, Log-Type must be alpha, which might mean custom_CL targets wont work?
-# https://learn.microsoft.com/en-us/rest/api/loganalytics/create-request
-# function Remove-NumeralsAndSpecialChars {
-#     param (
-#         [string]$inputString
-#     )
-#     $outputString = $inputString -replace '[^a-zA-Z]', ''
-#     return $outputString
-# }
-# $sanitizedLATable = Remove-NumeralsAndSpecialChars($LATableName)
-Write-Output "LAURI : $LAURI"
 if($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-Z\.]+)$')
 {
     Write-Error -Message "Storage Account Blobs Ingestion: Invalid Log Analytics Uri." -ErrorAction Stop
@@ -89,11 +67,7 @@ Function Write-OMSLogfile {
         [Parameter(Mandatory = $true, Position = 4)]
         [string]$SharedKey
     )
-    # Write-Verbose -Message "DateTime: $dateTime"
-    # Write-Verbose -Message ('DateTimeKind:' + $dateTime.kind)
-    # Write-Verbose -Message "Type: $type"
-    # Write-Verbose -Message "LogData: $logdata"
-#
+
     # Supporting Functions
     # Function to create the auth signature
     Function Build-Signature ($customerId, $sharedKey, $date, $contentLength, $method, $contentType, $resource) {
@@ -132,24 +106,18 @@ Function Write-OMSLogfile {
             "time-generated-field" = $utcEvtTime;
         }
         $response = Invoke-WebRequest -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $Body -UseBasicParsing -Verbose
-        Write-Verbose -message ('Post Function Return Code ' + $response.statuscode)
+        Write-Verbose -Message ('Post Function Return Code ' + $response.statuscode)
         return $response.statuscode
     }
-    # # Check if time is UTC, Convert to UTC if not.
-    # # $dateTime = (Get-Date)
-    # if ($dateTime.kind.tostring() -ne 'Utc') {
-    #     $utcTime = $dateTime.ToUniversalTime()
-    #     Write-Verbose -Message ('UTC Time ' + $dateTime)
-    # }
+
     # Add DateTime to hashtable
-    #$logdata.add("DateTime", $dateTime)
     $logdata | Add-Member -MemberType NoteProperty -Name "DateTime" -Value $evtTime
     #Build the JSON file
     $logMessage = ($logdata | ConvertTo-Json -Depth 20)
-    Write-Verbose -Message ('Log Message ' + $logMessage)
+    Write-Verbose -Message ("Log Message POST Body:`n" + $logMessage)
     #Submit the data
     $returnCode = Submit-OMSPostReq -CustomerID $CustomerID -SharedKey $SharedKey -Body $logMessage -Type $type -Verbose
-    Write-Verbose -Message "Post Statement Return Code $returnCode"
+    Write-Verbose -Message ("Post Statement Return Code " + $returnCode)
     return $returnCode
 }
 
@@ -158,13 +126,13 @@ Function Submit-ChunkLAdata ($corejson, $customLogName) {
     $tempdata = @()
     $tempDataSize = 0
     if ((($corejson |  ConvertTo-Json -depth 20).Length) -gt 25MB) {
-		Write-Host "Upload is over 25MB, needs to be split"
+		Write-Warning -Message ("Upload is over 25MB, needs to be split")
         foreach ($record in $corejson) {
             $tempdata += $record
             $tempDataSize += ($record | ConvertTo-Json -depth 20).Length
             if ($tempDataSize -gt 25MB) {
                 Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $tempdata -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
-                write-Host "Sending data = $TempDataSize"
+                write-Host "Sending dataset = $TempDataSize"
                 $tempdata = $null
                 $tempdata = @()
                 $tempDataSize = 0
@@ -314,18 +282,28 @@ Function Submit-ChunkLAdata ($corejson, $customLogName) {
 # }
 
 #Build the JSON from queue and grab blob path vars
+# $BlobURL            = $QueueArr.data.url.tostring()
+# $ResourceGroup      = $QueueArr.topic.split('/')[4]
 $QueueMsg           = ConvertTo-Json $QueueItem -Depth 20 #-Compress -Verbose
 $QueueArr           = @(ConvertFrom-Json $QueueMsg);
-# $ResourceGroup      = $QueueArr.topic.split('/')[4]
 $StorageAccountName = $QueueArr.topic.split('/')[-1]
 $ContainerName      = $QueueArr.subject.split('/')[4]
 $BlobName           = $QueueArr.subject.split('/')[-1]
-#$BlobPath           = $QueueArr.subject.tostring()
 $BlobPath           = $QueueArr.subject.split('/')[6..($QueueArr.subject.split('/').Length - 1)] -join '/'
-$BlobURL            = $QueueArr.data.url.tostring()
 $evtTime            = $QueueArr.eventTime
-Write-Output "$evtTime Queue Reported $StorageAccountName\$ContainerName\$BlobName`nat $BlobURL"
-# import-module az.storage
+Write-Verbose -Message ("######################################################################################")
+Write-Verbose -Message ("######################### BEGIN NEW TRANSACTION ######################################")
+Write-Verbose -Message ("######################################################################################")
+Write-Verbose -Message ("PowerShell queue trigger function processed work item:" + $QueueItem)
+Write-Verbose -Message ("Current Directory           :" + $(Get-Location))
+Write-Verbose -Message ("Queue item expiration time  :" + ${$TriggerMetadata.ExpirationTime})
+Write-Verbose -Message ("Queue item insertion time   :" + ${TriggerMetadata.InsertionTime})
+Write-Verbose -Message ("Queue item next visible time:" + ${TriggerMetadata.NextVisibleTime})
+Write-Verbose -Message ("ID                          :" + ${TriggerMetadata.Id})
+Write-Verbose -Message ("Pop receipt                 :" + ${TriggerMetadata.PopReceipt})
+Write-Verbose -Message ("Dequeue count               :" + ${TriggerMetadata.DequeueCount})
+Write-Verbose -Message ("Log Analytics URI           :" + $LAURI)
+Write-Verbose -Message ("$evtTime Queue Reported new item`nStorage Account Name     Container Name     BlobName`n$StorageAccountName  \  $ContainerName  \  $BlobName")
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
 $logPath = [System.IO.Path]::Combine($env:TEMP, $BlobName)
 # Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -force > $null
@@ -338,27 +316,27 @@ catch {
     Write-Output "Error downloading blob content: $_"
 }
 $logsFromFile = Get-Content -Path $logPath -raw |ConvertFrom-Json
-# foreach ($log in $logsFromFile) {
-    # $json = Convert-LogLineToJson($log)
-    # $formalizedJson = ( [System.Text.Encoding]::UTF8.GetBytes($json))
-    $LAPostResult = Submit-ChunkLAdata -Verbose -Corejson $logsFromFile -CustomLogName $LATableName #$sanitizedLATable
-    if($LAPostResult -eq 200) {
-        Write-Output ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
-        # Connect to Storage Queue to remove message on successful log processing
-        Remove-Item $logPath
-        $AzureQueue = Get-AzStorageQueue -Name $AzureQueueName -Context $AzureStorage
-        Write-Verbose "Dequeuing '${TriggerMetaData.id} ${TriggerMetadata.popReceipt} '`nFrom '$AzureQueue.CloudQueue'"
-        if ($null -ne $AzureQueueName -and $null -ne $TriggerMetadata -and $null -ne $TriggerMetadata.Id -and $null -ne $TriggerMetadata.popReceipt) {
-            <#$Null =#> $AzureQueue.CloudQueue.DeleteMessageAsync(${TriggerMetadata.Id}, ${TriggerMetadata.popReceipt})
-        } else {
-            Write-Host "Unable to DeQueue Item from: Queue='$AzureQueue' TriggerMetadata: '$TriggerMetadata'"
-        }
-        Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath
-        [System.GC]::collect() #cleanup memory
+
+# $json = Convert-LogLineToJson($log)
+# $formalizedJson = ( [System.Text.Encoding]::UTF8.GetBytes($json))
+$LAPostResult = Submit-ChunkLAdata -Verbose -Corejson $logsFromFile -CustomLogName $LATableName
+if($LAPostResult -eq 200) {
+    Remove-Item $logPath
+    Write-Output ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
+    Write-Output ("Dequeuing '${TriggerMetaData.id} ${TriggerMetadata.popReceipt} '`nFrom '$AzureQueue.CloudQueue'")
+    # Connect to Storage Queue to remove message on successful log processing
+    $AzureQueue = Get-AzStorageQueue -Name $AzureQueueName -Context $AzureStorage
+    if ($null -ne $AzureQueueName -and $null -ne $TriggerMetadata -and $null -ne $TriggerMetadata.Id -and $null -ne $TriggerMetadata.popReceipt) {
+        <#$Null =#> $AzureQueue.CloudQueue.DeleteMessage(${TriggerMetadata.Id}, ${TriggerMetadata.popReceipt})
+    } else {
+        Write-Host "Unable to DeQueue Item from: Queue='$AzureQueue' TriggerMetadata: '$TriggerMetadata'"
     }
-# }
-Write-Output "######################################################################################"
-Write-Output "############################ END TRANSACTION #########################################"
-Write-Output "######################################################################################"
+    Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath
+    [System.GC]::collect() #cleanup memory
+}
+Write-Verbose -Message ("######################################################################################")
+Write-Verbose -Message ("############################ END TRANSACTION #########################################")
+Write-Verbose -Message ("################# $BlobName ################")
+Write-Verbose -Message ("######################################################################################")
 [System.GC]::GetTotalMemory($true) | out-null #Force full garbage collection - Powershell does not clean itself up properly in some situations
 #end of Script
