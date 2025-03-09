@@ -15,7 +15,7 @@
     1.1.0 Spec change? required mods
 #>
 # Input bindings are passed in via param block.
-param([object] $QueueItem, $TriggerMetadata)
+param([string] $QueueItem, $TriggerMetadata)
 
 $VerbosePreference = "Continue"
 # Write out the queue message and metadata to the information log.
