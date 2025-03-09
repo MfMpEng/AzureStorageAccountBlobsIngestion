@@ -19,6 +19,7 @@ param([object] $QueueItem, $TriggerMetadata)
 
 # $VerbosePreference = "Continue"
 # Write out the queue message and metadata to the information log.
+Write-Output "Current Directory: $(Get-Location)"
 Write-Output "######################################################################################"
 Write-Output "######################### BEGIN NEW TRANSACTION ######################################"
 Write-Output "######################################################################################"
@@ -354,7 +355,7 @@ Write-Output "$evtTime Queue Reported $StorageAccountName\$ContainerName\$BlobNa
 # import-module az.storage
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
 
-$logPath = 'D:\home\log.json'
+$logPath = [System.IO.Path]::Combine($env:TEMP, "log.json")
 Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -force > $null
 $logsFromFile = Get-Content -Path $logPath -raw
 
