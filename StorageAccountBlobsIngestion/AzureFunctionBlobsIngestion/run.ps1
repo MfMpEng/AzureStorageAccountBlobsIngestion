@@ -291,6 +291,8 @@ $ContainerName      = $QueueArr.subject.split('/')[4]
 $BlobName           = $QueueArr.subject.split('/')[-1]
 $BlobPath           = $QueueArr.subject.split('/')[6..($QueueArr.subject.split('/').Length - 1)] -join '/'
 $evtTime            = $QueueArr.eventTime
+$QueueID            = $TriggerMetadata.Id
+$QueuePOP           = $TriggerMetadata.PopReceipt
 Write-Verbose -Message ("######################################################################################")
 Write-Verbose -Message ("######################### BEGIN NEW TRANSACTION ######################################")
 Write-Verbose -Message ("######################################################################################")
@@ -323,11 +325,11 @@ $LAPostResult = Submit-ChunkLAdata -Verbose -Corejson $logsFromFile -CustomLogNa
 if($LAPostResult -eq 200) {
     Remove-Item $logPath
     Write-Output ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
-    Write-Output ("Dequeuing '${TriggerMetaData.id} ${TriggerMetadata.popReceipt} '`nFrom '$AzureQueue.CloudQueue'")
+    Write-Output ("Dequeuing Trigger ID/popReceipt: '${TriggerMetaData.id} ${TriggerMetadata.popReceipt}' From CloudQueue '${AzureQueue.CloudQueue}'")
     # Connect to Storage Queue to remove message on successful log processing
     $AzureQueue = Get-AzStorageQueue -Name $AzureQueueName -Context $AzureStorage
-    if ($null -ne $AzureQueueName -and $null -ne $TriggerMetadata -and $null -ne $TriggerMetadata.Id -and $null -ne $TriggerMetadata.popReceipt) {
-        <#$Null =#> $AzureQueue.CloudQueue.DeleteMessage(${TriggerMetadata.Id}, ${TriggerMetadata.popReceipt})
+    if ($null -ne $AzureQueueName -and $null -ne $TriggerMetadata -and $null -ne $QueueId -and $null -ne $QueuePOP -and 0 -ne $AzureQueueName.Length -and 0 -ne $TriggerMetadata.length -and 0 -ne $QueueId.length -and 0 -ne $QueuePOP.length) {
+        <#$Null =#> $AzureQueue.CloudQueue.DeleteMessage($QueueID, $QueuePOP)
     } else {
         Write-Host "Unable to DeQueue Item from: Queue='$AzureQueue' TriggerMetadata: '$TriggerMetadata'"
     }
