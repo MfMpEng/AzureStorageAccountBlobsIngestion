@@ -350,7 +350,7 @@ $BlobURL            = $QueueArr.data.url.tostring()
 $evtTime            = $QueueArr.eventTime
 Write-Output "$evtTime Queue Reported $StorageAccountName\$ContainerName\$BlobName`nat $BlobURL"
 
-import-module az.storage
+# import-module az.storage
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
 
 $logPath = '.\log.json'

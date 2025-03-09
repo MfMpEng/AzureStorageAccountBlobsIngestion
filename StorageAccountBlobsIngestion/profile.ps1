@@ -15,8 +15,8 @@ if ($env:MSI_SECRET) {
 	Disable-AzContextAutosave -Scope Process
     Connect-AzAccount -Identity
 }
-Import-Module Az.Accounts
-Import-Module Az.Storage
+# Import-Module Az.Accounts
+# Import-Module Az.Storage
 # Uncomment the next line to enable legacy AzureRm alias in Azure PowerShell.
 # Enable-AzureRmAlias
 
