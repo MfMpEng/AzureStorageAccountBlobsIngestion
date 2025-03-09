@@ -15,14 +15,14 @@
     1.1.0 Spec change? required mods
 #>
 # Input bindings are passed in via param block.
-param([string] $QueueItem, $TriggerMetadata)
+param([object] $QueueItem, $TriggerMetadata)
 
-$VerbosePreference = "Continue"
+# $VerbosePreference = "Continue"
 # Write out the queue message and metadata to the information log.
 Write-Output "######################################################################################"
 Write-Output "######################### BEGIN NEW TRANSACTION ######################################"
 Write-Output "######################################################################################"
-Write-Output "PowerShell queue trigger function processed work item: $QueueItem"
+Write-Verbose "PowerShell queue trigger function processed work item: $QueueItem"
 # Write-Verbose "Queue item expiration time: $($TriggerMetadata.ExpirationTime)"
 # Write-Verbose "Queue item insertion time: $($TriggerMetadata.InsertionTime)"
 # Write-Verbose "Queue item next visible time: $($TriggerMetadata.NextVisibleTime)"
@@ -340,8 +340,8 @@ Function Convert-LogLineToJson([String] $logLine) {
 
 
 #Build the JSON from queue and grab blob path vars
-# $QueueMsg           = ConvertTo-Json $QueueItem -Depth 5 #-Compress -Verbose
-$QueueArr           = ConvertFrom-Json $QueueItem;
+$QueueMsg           = ConvertTo-Json $QueueItem -Depth 20 #-Compress -Verbose
+$QueueArr           = ConvertFrom-Json $QueueMsg;
 # $ResourceGroup      = $QueueArr.topic.split('/')[4]
 $StorageAccountName = $QueueArr.topic.split('/')[-1]
 $ContainerName      = $QueueArr.subject.split('/')[4]
