@@ -342,12 +342,13 @@ Function Convert-LogLineToJson([String] $logLine) {
 
 #Build the JSON from queue and grab blob path vars
 $QueueMsg           = ConvertTo-Json $QueueItem -Depth 20 #-Compress -Verbose
-$QueueArr           = ConvertFrom-Json $QueueMsg;
+$QueueArr           = @(ConvertFrom-Json $QueueMsg);
 # $ResourceGroup      = $QueueArr.topic.split('/')[4]
 $StorageAccountName = $QueueArr.topic.split('/')[-1]
 $ContainerName      = $QueueArr.subject.split('/')[4]
 $BlobName           = $QueueArr.subject.split('/')[-1]
-$BlobPath           = $QueueArr.subject.tostring()
+#$BlobPath           = $QueueArr.subject.tostring()
+$BlobPath           = $QueueArr.subject.split('/')[6..($QueueArr.subject.split('/').Length - 1)] -join '/'
 $BlobURL            = $QueueArr.data.url.tostring()
 $evtTime            = $QueueArr.eventTime
 Write-Output "$evtTime Queue Reported $StorageAccountName\$ContainerName\$BlobName`nat $BlobURL"
@@ -356,7 +357,15 @@ Write-Output "$evtTime Queue Reported $StorageAccountName\$ContainerName\$BlobNa
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
 
 $logPath = [System.IO.Path]::Combine($env:TEMP, "log.json")
-Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -force > $null
+# Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -force > $null
+try {
+    Write-Output "Attempting to download blob content..."
+    Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force > $null
+    Write-Output "Blob content downloaded to $logPath"
+}
+catch {
+    Write-Output "Error downloading blob content: $_"
+}
 $logsFromFile = Get-Content -Path $logPath -raw
 
 foreach ($log in $logsFromFile) {
