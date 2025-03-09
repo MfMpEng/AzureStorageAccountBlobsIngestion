@@ -28,7 +28,7 @@ Write-Verbose "Pop receipt: $($TriggerMetadata.PopReceipt)"
 # Write-Verbose "Dequeue count: $($TriggerMetadata.DequeueCount)"
 #####Environment Variables
 $AzureWebJobsStorage = $env:AzureWebJobsStorage
-# $AzureQueueName = $env:StgQueueName
+$AzureQueueName = $env:StgQueueName
 $WorkspaceId = $env:WorkspaceId
 $Workspacekey = $env:LogAnalyticsWorkspaceKey
 $LATableName = $env:LATableName
@@ -348,7 +348,12 @@ $logsFromFile = Get-Content -Path $logPath -raw |ConvertFrom-Json
         # $AzureQueue = Get-AzStorageQueue -Name $AzureQueueName -Context $AzureStorage
         # $Null = $AzureQueue.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)
         Remove-Item $logPath
-        $queue.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)
+        if ($null -ne $AzureQueueName -and $null -ne $TriggerMetadata -and $null -ne $TriggerMetadata.Id -and $null -ne $TriggerMetadata.popReceipt) {
+            $AzureQueueName.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)
+        }
+        else {
+            Write-Host "Unable to DeQueue Item: CloudQueue='${AzureQueueName.CloudQueue}' TriggerMetadata: '$TriggerMetadata'"
+        }
         Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath
         [System.GC]::collect() #cleanup memory
     }
