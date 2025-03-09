@@ -14,14 +14,14 @@
     1.0.0 Inital release of code
     1.1.0 Spec change? required mods
 #>
-# $VerbosePreference = "Continue"
-Write-Output "######################################################################################"
-Write-Output "######################### BEGIN NEW TRANSACTION ######################################"
-Write-Output "######################################################################################"
 # Input bindings are passed in via param block.
 param([object] $QueueItem, $TriggerMetadata)
 
+$VerbosePreference = "Continue"
 # Write out the queue message and metadata to the information log.
+Write-Output "######################################################################################"
+Write-Output "######################### BEGIN NEW TRANSACTION ######################################"
+Write-Output "######################################################################################"
 Write-Output "PowerShell queue trigger function processed work item: $QueueItem"
 # Write-Verbose "Queue item expiration time: $($TriggerMetadata.ExpirationTime)"
 # Write-Verbose "Queue item insertion time: $($TriggerMetadata.InsertionTime)"
@@ -117,7 +117,7 @@ Function Write-OMSLogfile {
         return $authorization
     }
     # Function to create and post the request
-    Function Submit-LogAnalyticsData ($CustomerID, $SharedKey, $Body, $Type) {
+    Function Submit-OMSPostReq ($CustomerID, $SharedKey, $Body, $Type) {
         $method = "POST"
         $ContentType = 'application/json'
         $resource = '/api/logs'
@@ -163,7 +163,7 @@ Function Write-OMSLogfile {
     Write-Verbose -Message ('Log Message ' + $logMessage)
 
     #Submit the data
-    $returnCode = Submit-LogAnalyticsData -CustomerID $CustomerID -SharedKey $SharedKey -Body $logMessage -Type $type -Verbose
+    $returnCode = Submit-OMSPostReq -CustomerID $CustomerID -SharedKey $SharedKey -Body $logMessage -Type $type -Verbose
     Write-Verbose -Message "Post Statement Return Code $returnCode"
     return $returnCode
 }
@@ -179,7 +179,7 @@ Function Submit-LogAnalyticsData ($corejson, $customLogName) {
             $tempdata += $record
             $tempDataSize += ($record | ConvertTo-Json -depth 20).Length
             if ($tempDataSize -gt 25MB) {
-                Write-OMSLogfile -dateTime (Get-Date) -type $customLogName -logdata $tempdata -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
+                Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $tempdata -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
                 write-Host "Sending data = $TempDataSize"
                 $tempdata = $null
                 $tempdata = @()
@@ -187,12 +187,33 @@ Function Submit-LogAnalyticsData ($corejson, $customLogName) {
             }
         }
         Write-Host "Sending left over data = $Tempdatasize"
-        Write-OMSLogfile -dateTime (Get-Date) -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
+        Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
     }
     Else {
         #Send to Log A as is
-        Write-OMSLogfile -dateTime (Get-Date) -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
+        Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
     }
+}
+
+Function Convert-SemicolonToURLEncoding([String] $InputText) {
+    $ReturnText = ""
+    $chars = $InputText.ToCharArray()
+    $StartConvert = $false
+
+    foreach ($c in $chars) {
+        if ($c -eq '"') {
+            $StartConvert = ! $StartConvert
+        }
+
+        if ($StartConvert -eq $true -and $c -eq ';') {
+            $ReturnText += "%3B"
+        }
+        else {
+            $ReturnText += $c
+        }
+    }
+
+    return $ReturnText
 }
 
 Function ConvertTo-JsonValue($Text) {
@@ -223,36 +244,85 @@ Function Convert-LogLineToJson([String] $logLine) {
     }
 
     $Columns =
-    (   "version-number",
-    "request-start-time",
-    "operation-type",
-    "request-status",
-    "http-status-code",
-    "end-to-end-latency-in-ms",
-    "server-latency-in-ms",
-    "authentication-type",
-    "requester-account-name",
-    "owner-account-name",
-    "service-type",
-    "request-url",
-    "requested-object-key",
-    "request-id-header",
-    "operation-count",
-    "requester-ip-address",
-    "request-version-header",
-    "request-header-size",
-    "request-packet-size",
-    "response-header-size",
-    "response-packet-size",
-    "request-content-length",
-    "request-md5",
-    "server-md5",
-    "etag-identifier",
-    "last-modified-time",
-    "conditions-used",
-    "user-agent-header",
-    "referrer-header",
-    "client-request-id"
+    ("F5_timestamp_CF",
+    "F5_id_CF",
+    "F5_visitor_id_CF",
+    "action_CF",
+    "api_endpoint_CF",
+    "app_CF",
+    "app_type_CF",
+    "as_number_CF",
+    "as_org_CF",
+    "asn_CF",
+    "attack_types_CF",
+    "authority_CF",
+    "bot_info_CF",
+    "browser_type_CF",
+    "calculated_action_CF",
+    "city_CF",
+    "cluster_name_CF",
+    "country_CF",
+    "dcid_CF",
+    "detections_CF",
+    "device_type_CF",
+    "domain_CF",
+    "dst_CF",
+    "dst_instance_CF",
+    "dst_ip_CF",
+    "dst_port_CF",
+    "dst_site_CF",
+    "excluded_threat_campaigns_CF",
+    "hostname_CF",
+    "http_version_CF",
+    "is_new_dcid_CF",
+    "is_truncated_field_CF",
+    "kubernetes_CF",
+    "latitude_CF",
+    "longitude_CF",
+    "messageid_CF",
+    "method_CF",
+    "namespace_CF",
+    "network_CF",
+    "no_active_detections_CF",
+    "original_headers_CF",
+    "original_path_CF",
+    "path_CF",
+    "region_CF",
+    "req_headers_CF",
+    "req_headers_size_CF",
+    "req_id_CF",
+    "req_params_CF",
+    "req_path_CF",
+    "req_size_CF",
+    "rsp_code_CF",
+    "rsp_code_class_CF",
+    "rsp_size_CF",
+    "sec_event_name_CF",
+    "sec_event_type_CF",
+    "severity_CF",
+    "signatures_CF",
+    "site_CF",
+    "sni_CF",
+    "src_CF",
+    "src_instance_CF",
+    "src_ip_CF",
+    "src_port_CF",
+    "src_site_CF",
+    "stream_CF",
+    "tag_CF",
+    "tenant_CF",
+    "threat_campaigns_CF",
+    "time_CF",
+    "tls_fingerprint_CF",
+    "user_CF",
+    "user_agent_CF",
+    "vh_name_CF",
+    "vhost_id_CF",
+    "violation_details_CF",
+    "violation_rating_CF",
+    "violations_CF",
+    "waf_mode_CF",
+    "x_forwarded_for_CF"
     )
 
     # Propose json payload
@@ -277,7 +347,8 @@ $StorageAccountName = $QueueArr.topic.split('/')[-1]
 $ContainerName      = $QueueArr.subject.split('/')[4]
 $BlobName           = $QueueArr.subject.split('/')[-1]
 $BlobURL            = $QueueArr.data.url.tostring()
-Write-Output "Found $StorageAccountName\$ContainerName\$BlobName`nat $BlobURL"
+$evtTime            = $QueueArr.eventTime
+Write-Output "$evtTime Queue Reported $StorageAccountName\$ContainerName\$BlobName`nat $BlobURL"
 
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
 
