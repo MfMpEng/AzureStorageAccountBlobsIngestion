@@ -346,6 +346,7 @@ $QueueArr           = ConvertFrom-Json $QueueMsg;
 $StorageAccountName = $QueueArr.topic.split('/')[-1]
 $ContainerName      = $QueueArr.subject.split('/')[4]
 $BlobName           = $QueueArr.subject.split('/')[-1]
+$BlobPath           = $QueueArr.subject.tostring()
 $BlobURL            = $QueueArr.data.url.tostring()
 $evtTime            = $QueueArr.eventTime
 Write-Output "$evtTime Queue Reported $StorageAccountName\$ContainerName\$BlobName`nat $BlobURL"
@@ -354,7 +355,7 @@ Write-Output "$evtTime Queue Reported $StorageAccountName\$ContainerName\$BlobNa
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
 
 $logPath = 'D:\home\log.json'
-Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobName -Destination $logPath -force > $null
+Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -force > $null
 $logsFromFile = Get-Content -Path $logPath -raw
 
 foreach ($log in $logsFromFile) {
@@ -367,7 +368,7 @@ foreach ($log in $logsFromFile) {
         # Connect to Storage Queue to remove message on successful log processing
         $AzureQueue = Get-AzStorageQueue -Name $AzureQueueName -Context $AzureStorage
         $Null = $AzureQueue.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)
-        Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobName
+        Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath
         [System.GC]::collect() #cleanup memory
     }
 }
