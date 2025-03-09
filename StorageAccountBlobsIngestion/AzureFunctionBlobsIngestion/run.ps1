@@ -360,24 +360,25 @@ $logPath = [System.IO.Path]::Combine($env:TEMP, "log.json")
 # Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -force > $null
 try {
     Write-Output "Attempting to download blob content..."
-    Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force > $null
+    Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force |out-null
     Write-Output "Blob content downloaded to $logPath"
 }
 catch {
     Write-Output "Error downloading blob content: $_"
 }
-$logsFromFile = Get-Content -Path $logPath -raw
+$logsFromFile = Get-Content -Path $logPath -raw |ConvertFrom-Json
 
 foreach ($log in $logsFromFile) {
-    $json = Convert-LogLineToJson($log)
-    $formalizedJson = ( [System.Text.Encoding]::UTF8.GetBytes($json))
-    $LAPostResult = Submit-LogAnalyticsData -Verbose -Corejson $formalizedJson -CustomLogName $LATableName #$sanitizedLATable
+    # $json = Convert-LogLineToJson($log)
+    # $formalizedJson = ( [System.Text.Encoding]::UTF8.GetBytes($json))
+    $LAPostResult = Submit-LogAnalyticsData -Verbose -Corejson $log -CustomLogName $LATableName #$sanitizedLATable
 
     if($LAPostResult -eq 200) {
         Write-Output ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
         # Connect to Storage Queue to remove message on successful log processing
-        $AzureQueue = Get-AzStorageQueue -Name $AzureQueueName -Context $AzureStorage
-        $Null = $AzureQueue.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)
+        # $AzureQueue = Get-AzStorageQueue -Name $AzureQueueName -Context $AzureStorage
+        # $Null = $AzureQueue.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)
+        $queue.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)
         Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath
         [System.GC]::collect() #cleanup memory
     }
