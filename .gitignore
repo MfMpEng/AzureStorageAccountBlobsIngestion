@@ -4,3 +4,4 @@ __azurite_db_blob_extent__.json
 .vscode/launch.json
 .vscode/settings.json
 .vscode/tasks.json
+.gitignore
