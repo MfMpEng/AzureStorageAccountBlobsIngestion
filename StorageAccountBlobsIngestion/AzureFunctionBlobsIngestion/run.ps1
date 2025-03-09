@@ -345,15 +345,15 @@ $logsFromFile = Get-Content -Path $logPath -raw |ConvertFrom-Json
     if($LAPostResult -eq 200) {
         Write-Output ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
         # Connect to Storage Queue to remove message on successful log processing
-        # $AzureQueue = Get-AzStorageQueue -Name $AzureQueueName -Context $AzureStorage
-        # $Null = $AzureQueue.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)
+        $AzureQueue = Get-AzStorageQueue -Name $AzureQueueName -Context $AzureStorage
+        $Null = $AzureQueue.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)
         Remove-Item $logPath
-        if ($null -ne $AzureQueueName -and $null -ne $TriggerMetadata -and $null -ne $TriggerMetadata.Id -and $null -ne $TriggerMetadata.popReceipt) {
-            $AzureQueueName.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)
-        }
-        else {
-            Write-Host "Unable to DeQueue Item: CloudQueue='${AzureQueueName.CloudQueue}' TriggerMetadata: '$TriggerMetadata'"
-        }
+        # if ($null -ne $AzureQueueName -and $null -ne $TriggerMetadata -and $null -ne $TriggerMetadata.Id -and $null -ne $TriggerMetadata.popReceipt) {
+            # $AzureQueue.CloudQueue.DeleteMessageAsync($TriggerMetadata.Id, $TriggerMetadata.popReceipt)
+        # }
+        # else {
+            # Write-Host "Unable to DeQueue Item: CloudQueue='${AzureQueueName.CloudQueue}' TriggerMetadata: '$TriggerMetadata'"
+        # }
         Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath
         [System.GC]::collect() #cleanup memory
     }
