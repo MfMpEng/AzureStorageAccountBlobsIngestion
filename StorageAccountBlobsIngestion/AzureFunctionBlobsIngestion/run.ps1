@@ -212,9 +212,10 @@ function Set-JsonPropertyNames {
     for ($i = 0; $i -lt $currentPropertyNames.Count; $i++) {
         $newJsonObject[$NewPropertyNames[$i]] = $jsonObject.$($currentPropertyNames[$i])
     }
+    $standardJsonString = $newJsonobject -replace '\\r\\n', '' -replace '\\\"', '\"'
     # Convert the JSON object back to a formatted JSON string
-    $formattedJsonString = $newjsonObject | ConvertTo-Json -Depth 20
-    return $formattedJsonString
+    $jsonObject = $standardJsonString | ConvertTo-Json -depth 20
+    return $jsonObject
 }
 # # Execution
 #Build the JSON from queue and grab blob path vars
