@@ -196,7 +196,7 @@ Function Submit-ChunkLAdata ($corejson, $customLogName) {
         Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
     }
 }
-function Set-JsonPropertyNames {
+function Rename-JsonProperties {
     param (
         [string]$rawJson,
         [hashtable]$newNames
@@ -212,8 +212,8 @@ function Set-JsonPropertyNames {
             }
         }
     }
-    # Convert the updated data back to JSON
-    $updatedJson = $data | ConvertTo-Json -Compress
+    # Convert the updated data back to JSON without compression
+    $updatedJson = $data | ConvertTo-Json
     return $updatedJson
 }
 # # Execution
@@ -349,7 +349,7 @@ if (!$skipfile -and !$skipNonLog) {
         "waf_mode"                  = "waf_mode_CF"
         "x_forwarded_for"           = "x_forwarded_for_CF"
     }
-    $newJsonString = Set-JsonPropertyNames -JsonString $logsFromFile -NewPropertyNames $PropNameReplDict -verbose
+    $newJsonString = Rename-JsonProperties -rawJson $logsFromFile -newNames $PropNameReplDict -verbose
     # $json = Convert-LogLineToJson($log)
     $LAPostResult = Submit-ChunkLAdata -Verbose -Corejson $newJsonString -CustomLogName $LATableName -verbose
 }
