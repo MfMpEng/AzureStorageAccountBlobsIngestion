@@ -1,15 +1,15 @@
 <#
     Title:          Azure Sentinel Log Ingestion - Process Log Queue Messages
     Language:       PowerShell
-    Version:        1.1.0
+    Version:        1.3.0
     Author(s):      Sreedhar Ande, MF@CF
-    Last Modified:  2025-03-07
+    Last Modified:  2025-03-09
     Comment:        Rebased Build
     DESCRIPTION
     This function monitors an Azure Storage queue for messages then retrieves the file and preps it for Ingestion processing.
     CHANGE HISTORY
     1.0.0 Inital release of code
-    1.1.0 Spec change? required mods
+    1.3.0 Submits blob content not queue message
 #>
 # Input bindings are passed in via param block.
 param( [object]$QueueItem, [object]$TriggerMetadata )
@@ -213,7 +213,7 @@ function Set-JsonPropertyNames {
     }
     # Replace escaped characters with standard JSON formatting
     $standardJsonString = $newJsonobject -replace '\\r\\n', '' -replace '\\\"', '\"'
-    $jsonObject = $standardJsonString | ConvertFrom-Json
+    $jsonObject = $standardJsonString | ConvertTo-Json -depth 20
     # Convert the JSON object back to a formatted JSON string
     # $formattedJsonString = $jsonObject | ConvertTo-Json -Depth 20
     return $jsonObject
@@ -231,20 +231,20 @@ $QueueID            = $TriggerMetadata.Id
 $QueuePOP           = $TriggerMetadata.PopReceipt
 # $BlobURL            = $QueueArr.data.url.tostring()
 # $ResourceGroup      = $QueueArr.topic.split('/')[4]
-Write-Host -ForegroundColor Green ("######################################################################################")
-Write-Host -ForegroundColor Green ("######################### BEGIN NEW TRANSACTION ######################################")
-Write-Host -ForegroundColor Green ("################# $BlobName ################")
-Write-Host -ForegroundColor Green ("######################################################################################")
-Write-Host -ForegroundColor Green ("PowerShell queue trigger function processed work item:" + $QueueItem)
-Write-Host -ForegroundColor Green ("Current Directory           :" + $(Get-Location))
-Write-Host -ForegroundColor Green ("Queue item expiration time  :" + $TriggerMetadata.ExpirationTime)
-Write-Host -ForegroundColor Green ("Queue item insertion time   :" + $TriggerMetadata.InsertionTime)
-Write-Host -ForegroundColor Green ("Queue item next visible time:" + $TriggerMetadata.NextVisibleTime)
-Write-Host -ForegroundColor Green ("Queue Message ID            :" + $QueueId)
-Write-Host -ForegroundColor Green ("Queue Message Pop receipt   :" + $QueuePOP)
-Write-Host -ForegroundColor Green ("Dequeue count               :" + $TriggerMetadata.DequeueCount)
-Write-Host -ForegroundColor Green ("Log Analytics URI           :" + $LAURI)
-Write-Host -ForegroundColor Green ("$evtTime Queue Reported new item`nStorage Account Name     Container Name     BlobName`n$StorageAccountName  \  $ContainerName  \  $BlobName")
+Write-Host ("######################################################################################")
+Write-Host ("######################### BEGIN NEW TRANSACTION ######################################")
+Write-Host ("################# $BlobName ################")
+Write-Host ("######################################################################################")
+Write-Host ("PowerShell queue trigger function processed work item:" + $QueueItem)
+Write-Host ("Current Directory           :" + $(Get-Location))
+Write-Host ("Queue item expiration time  :" + $TriggerMetadata.ExpirationTime)
+Write-Host ("Queue item insertion time   :" + $TriggerMetadata.InsertionTime)
+Write-Host ("Queue item next visible time:" + $TriggerMetadata.NextVisibleTime)
+Write-Host ("Queue Message ID            :" + $QueueId)
+Write-Host ("Queue Message Pop receipt   :" + $QueuePOP)
+Write-Host ("Dequeue count               :" + $TriggerMetadata.DequeueCount)
+Write-Host ("Log Analytics URI           :" + $LAURI)
+Write-Host ("$evtTime Queue Reported new item`nStorage Account Name     Container Name     BlobName`n$StorageAccountName  \  $ContainerName  \  $BlobName")
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
 $logPath = [System.IO.Path]::Combine($env:TEMP, $BlobName)
 # Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -force > $null
@@ -284,9 +284,9 @@ if($LAPostResult -eq 200) {
     Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath
     [System.GC]::collect() #cleanup memory
 }
-Write-Host -ForegroundColor Green ("######################################################################################")
-Write-Host -ForegroundColor Green ("############################ END TRANSACTION #########################################")
-Write-Host -ForegroundColor Green ("################# $BlobName ################")
-Write-Host -ForegroundColor Green ("######################################################################################")
+Write-Host ("######################################################################################")
+Write-Host ("############################ END TRANSACTION #########################################")
+Write-Host ("################# $BlobName ################")
+Write-Host ("######################################################################################")
 [System.GC]::GetTotalMemory($true) | out-null #Force full garbage collection - Powershell does not clean itself up properly in some situations
 #end of Script
