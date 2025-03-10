@@ -1,19 +1,118 @@
 {
-  "version": "2.0",
-  "managedDependency": {
-    "enabled": true
-  },
-  "extensionBundle": {
-    "id": "Microsoft.Azure.Functions.ExtensionBundle",
-    "version": "[4.17.0, 5.0.0)"
-  },
-  "functionTimeout": "00:10:00",
-  "logging": {
-    "applicationInsights": {
-      "samplingSettings": {
-        "isEnabled": true,
-        "excludedTypes": "Request"
+    "version": "2.0",
+    "aggregator": {
+        "batchSize": 1000,
+        "flushTimeout": "00:00:30"
+    },
+    "concurrency": {
+            "dynamicConcurrencyEnabled": true,
+            "snapshotPersistenceEnabled": true
+        },
+    "extensions": {
+      "blobs": {
+        "maxDegreeOfParallelism": 4,
+        "poisonBlobThreshold": 2
+      },
+      "http": {
+        "routePrefix": "api",
+        "maxOutstandingRequests": 200,
+        "maxConcurrentRequests": 100,
+        "dynamicThrottlesEnabled": true,
+        "hsts": {
+          "isEnabled": true,
+          "maxAge": "10"
+        },
+        "customHeaders": {
+          "X-Content-Type-Options": "nosniff"
+        }
+      },
+      "queues": {
+        "maxPollingInterval": "00:00:02",
+        "visibilityTimeout": "00:00:30",
+        "batchSize": 16,
+        "maxDequeueCount": 5,
+        "newBatchThreshold": 8,
+        "messageEncoding": "base64"
       }
-    }
-  }
+    },
+    "extensionBundle": {
+        "id": "Microsoft.Azure.Functions.ExtensionBundle",
+        "version": "[4.17.0, 5.0.0)"
+    },
+    "functionTimeout": "00:10:00",
+    "healthMonitor": {
+        "enabled": true,
+        "healthCheckInterval": "00:00:10",
+        "healthCheckWindow": "00:02:00",
+        "healthCheckThreshold": 6,
+        "counterThreshold": 0.80
+    },
+    "logging": {
+        "fileLoggingMode": "debugOnly",
+        "logLevel": {
+          "default": "Debug"
+        },
+        "applicationInsights": {
+            "samplingSettings": {
+              "isEnabled": true,
+              "maxTelemetryItemsPerSecond" : 20,
+              "evaluationInterval": "01:00:00",
+              "initialSamplingPercentage": 100.0,
+              "samplingPercentageIncreaseTimeout" : "00:00:01",
+              "samplingPercentageDecreaseTimeout" : "00:00:01",
+              "minSamplingPercentage": 0.1,
+              "maxSamplingPercentage": 100.0,
+              "movingAverageRatio": 1.0,
+              "excludedTypes" : "Dependency;Event;Request",
+              "includedTypes" : "PageView;Trace"
+            },
+            "dependencyTrackingOptions": {
+                "enableSqlCommandTextInstrumentation": false
+            },
+            "enableLiveMetrics": true,
+            "enableDependencyTracking": true,
+            "enablePerformanceCountersCollection": true,
+            "httpAutoCollectionOptions": {
+                "enableHttpTriggerExtendedInfoCollection": true,
+                "enableW3CDistributedTracing": true,
+                "enableResponseHeaderInjection": true
+            },
+            "snapshotConfiguration": {
+                "agentEndpoint": null,
+                "captureSnapshotMemoryWeight": 0.5,
+                "failedRequestLimit": 3,
+                "handleUntrackedExceptions": true,
+                "isEnabled": true,
+                "isEnabledInDeveloperMode": false,
+                "isEnabledWhenProfiling": true,
+                "isExceptionSnappointsEnabled": false,
+                "isLowPrioritySnapshotUploader": true,
+                "maximumCollectionPlanSize": 50,
+                "maximumSnapshotsRequired": 3,
+                "problemCounterResetInterval": "24:00:00",
+                "provideAnonymousTelemetry": true,
+                "reconnectInterval": "00:15:00",
+                "shadowCopyFolder": null,
+                "shareUploaderProcess": true,
+                "snapshotInLowPriorityThread": true,
+                "snapshotsPerDayLimit": 30,
+                "snapshotsPerTenMinutesLimit": 1,
+                "tempFolder": null,
+                "thresholdForSnapshotting": 1,
+                "uploaderProxy": null
+            }
+        }
+    },
+    "managedDependency": {
+        "enabled": true
+    },
+    "singleton": {
+      "lockPeriod": "00:00:15",
+      "listenerLockPeriod": "00:01:00",
+      "listenerLockRecoveryPollingInterval": "00:01:00",
+      "lockAcquisitionTimeout": "00:01:00",
+      "lockAcquisitionPollingInterval": "00:00:03"
+    },
+    "watchDirectories": [ "." ],
+    "watchFiles": [ "host.json","profile.ps1","requirements.psd1" ]
 }
