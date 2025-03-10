@@ -12,7 +12,7 @@
     1.1.0 Spec change? required mods
 #>
 # Input bindings are passed in via param block.
-param([object] $QueueItem, $TriggerMetadata)
+param( [object]$QueueItem, [object]$TriggerMetadata )
 # $VerbosePreference = "Continue"
 # Write out the queue message and metadata to the information log.
 #####Environment Variables
@@ -282,8 +282,6 @@ Function Submit-ChunkLAdata ($corejson, $customLogName) {
 # }
 
 #Build the JSON from queue and grab blob path vars
-# $BlobURL            = $QueueArr.data.url.tostring()
-# $ResourceGroup      = $QueueArr.topic.split('/')[4]
 $QueueMsg           = ConvertTo-Json $QueueItem -Depth 20 #-Compress -Verbose
 $QueueArr           = @(ConvertFrom-Json $QueueMsg);
 $StorageAccountName = $QueueArr.topic.split('/')[-1]
@@ -293,19 +291,22 @@ $BlobPath           = $QueueArr.subject.split('/')[6..($QueueArr.subject.split('
 $evtTime            = $QueueArr.eventTime
 $QueueID            = $TriggerMetadata.Id
 $QueuePOP           = $TriggerMetadata.PopReceipt
-Write-Verbose -Message ("######################################################################################")
-Write-Verbose -Message ("######################### BEGIN NEW TRANSACTION ######################################")
-Write-Verbose -Message ("######################################################################################")
-Write-Verbose -Message ("PowerShell queue trigger function processed work item:" + $QueueItem)
-Write-Verbose -Message ("Current Directory           :" + $(Get-Location))
-Write-Verbose -Message ("Queue item expiration time  :" + ${$TriggerMetadata.ExpirationTime})
-Write-Verbose -Message ("Queue item insertion time   :" + ${TriggerMetadata.InsertionTime})
-Write-Verbose -Message ("Queue item next visible time:" + ${TriggerMetadata.NextVisibleTime})
-Write-Verbose -Message ("ID                          :" + ${TriggerMetadata.Id})
-Write-Verbose -Message ("Pop receipt                 :" + ${TriggerMetadata.PopReceipt})
-Write-Verbose -Message ("Dequeue count               :" + ${TriggerMetadata.DequeueCount})
-Write-Verbose -Message ("Log Analytics URI           :" + $LAURI)
-Write-Verbose -Message ("$evtTime Queue Reported new item`nStorage Account Name     Container Name     BlobName`n$StorageAccountName  \  $ContainerName  \  $BlobName")
+# $BlobURL            = $QueueArr.data.url.tostring()
+# $ResourceGroup      = $QueueArr.topic.split('/')[4]
+Write-Host -ForegroundColor Green ("######################################################################################")
+Write-Host -ForegroundColor Green ("######################### BEGIN NEW TRANSACTION ######################################")
+Write-Host -ForegroundColor Green ("################# $BlobName ################")
+Write-Host -ForegroundColor Green ("######################################################################################")
+Write-Host -ForegroundColor Green ("PowerShell queue trigger function processed work item:" + $QueueItem)
+Write-Host -ForegroundColor Green ("Current Directory           :" + $(Get-Location))
+Write-Host -ForegroundColor Green ("Queue item expiration time  :" + ${$TriggerMetadata.ExpirationTime})
+Write-Host -ForegroundColor Green ("Queue item insertion time   :" + ${TriggerMetadata.InsertionTime})
+Write-Host -ForegroundColor Green ("Queue item next visible time:" + ${TriggerMetadata.NextVisibleTime})
+Write-Host -ForegroundColor Green ("ID                          :" + ${TriggerMetadata.Id})
+Write-Host -ForegroundColor Green ("Pop receipt                 :" + ${TriggerMetadata.PopReceipt})
+Write-Host -ForegroundColor Green ("Dequeue count               :" + ${TriggerMetadata.DequeueCount})
+Write-Host -ForegroundColor Green ("Log Analytics URI           :" + $LAURI)
+Write-Host -ForegroundColor Green ("$evtTime Queue Reported new item`nStorage Account Name     Container Name     BlobName`n$StorageAccountName  \  $ContainerName  \  $BlobName")
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
 $logPath = [System.IO.Path]::Combine($env:TEMP, $BlobName)
 # Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -force > $null
@@ -325,10 +326,10 @@ $LAPostResult = Submit-ChunkLAdata -Verbose -Corejson $logsFromFile -CustomLogNa
 if($LAPostResult -eq 200) {
     Remove-Item $logPath
     Write-Output ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
-    Write-Output ("Dequeuing Trigger ID/popReceipt: '${TriggerMetaData.id} ${TriggerMetadata.popReceipt}' From CloudQueue '${AzureQueue.CloudQueue}'")
     # Connect to Storage Queue to remove message on successful log processing
-    $AzureQueue = Get-AzStorageQueue -Name $AzureQueueName -Context $AzureStorage
-    if ($null -ne $AzureQueueName -and $null -ne $TriggerMetadata -and $null -ne $QueueId -and $null -ne $QueuePOP -and 0 -ne $AzureQueueName.Length -and 0 -ne $TriggerMetadata.length -and 0 -ne $QueueId.length -and 0 -ne $QueuePOP.length) {
+    $AzureQueue = Get-AzStorageQueue -Context $AzureStorage -Name $AzureQueueName
+    Write-Output ("Dequeuing Trigger ID/popReceipt: '$QueueId :: $QueuePop' From CloudQueue '$AzureQueue'")
+    if ($null -ne $AzureQueue -and $null -ne $TriggerMetadata -and $null -ne $QueueId -and $null -ne $QueuePOP -and 0 -ne $AzureQueue.Length -and 0 -ne $TriggerMetadata.length -and 0 -ne $QueueId.length -and 0 -ne $QueuePOP.length) {
         <#$Null =#> $AzureQueue.CloudQueue.DeleteMessage($QueueID, $QueuePOP)
     } else {
         Write-Host "Unable to DeQueue Item from: Queue='$AzureQueue' TriggerMetadata: '$TriggerMetadata'"
@@ -336,9 +337,9 @@ if($LAPostResult -eq 200) {
     Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath
     [System.GC]::collect() #cleanup memory
 }
-Write-Verbose -Message ("######################################################################################")
-Write-Verbose -Message ("############################ END TRANSACTION #########################################")
-Write-Verbose -Message ("################# $BlobName ################")
-Write-Verbose -Message ("######################################################################################")
+Write-Host -ForegroundColor Green ("######################################################################################")
+Write-Host -ForegroundColor Green ("############################ END TRANSACTION #########################################")
+Write-Host -ForegroundColor Green ("################# $BlobName ################")
+Write-Host -ForegroundColor Green ("######################################################################################")
 [System.GC]::GetTotalMemory($true) | out-null #Force full garbage collection - Powershell does not clean itself up properly in some situations
 #end of Script
