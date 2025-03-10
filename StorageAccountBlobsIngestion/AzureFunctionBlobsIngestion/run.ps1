@@ -27,6 +27,61 @@ if($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-Z
     Write-Error -Message "Storage Account Blobs Ingestion: Invalid Log Analytics Uri." -ErrorAction Stop
 	Exit
 }
+
+# useful if log source does not provide explicit json, only a csv of property values to reconstruct
+# Function Convert-LogLineToJson([String] $logLine) {
+#     #supporting Functions
+#
+#     Function Convert-SemicolonToURLEncoding([String] $InputText) {
+#         $ReturnText = ""
+#         $chars = $InputText.ToCharArray()
+#         $StartConvert = $false
+#         foreach ($c in $chars) {
+#             if ($c -eq '"') {
+#                 $StartConvert = ! $StartConvert
+#             }
+#             if ($StartConvert -eq $true -and $c -eq ';') {
+#                 $ReturnText += "%3B"
+#             }
+#             else {
+#                 $ReturnText += $c
+#             }
+#         }
+#         return $ReturnText
+#     }
+#     Function ConvertTo-JsonValue($Text) {
+#         $Text1 = ""
+#         if ($Text.IndexOf("`"") -eq 0) { $Text1 = $Text } else { $Text1 = "`"" + $Text + "`"" }
+#         if ($Text1.IndexOf("%3B") -ge 0) {
+#             $ReturnText = $Text1.Replace("%3B", ";")
+#         }
+#         else {
+#             $ReturnText = $Text1
+#         }
+#         return $ReturnText
+#     }
+#     #Convert semicolon to %3B in the log line to avoid wrong split with ";"
+#     $logLineEncoded = Convert-SemicolonToURLEncoding($logLine)
+#     $elements = $logLineEncoded.split(';')
+#     $FormattedElements = New-Object System.Collections.ArrayList
+#     foreach ($element in $elements) {
+#         # Validate if the text starts with ", and add it if not
+#         $NewText = ConvertTo-JsonValue($element)
+#         # Use "> null" to avoid annoying index print in the console
+#         $FormattedElements.Add($NewText) |out-null
+#     }
+#     $Columns = ("col1", "col2")
+#     # Propose json payload
+#     $logJson = "[{";
+#     For ($i = 0; $i -lt $Columns.Length; $i++) {
+#         $logJson += "`"" + $Columns[$i] + "`":" + $FormattedElements[$i]
+#         if ($i -lt $Columns.Length - 1) {
+#             $logJson += ","
+#         }
+#     }
+#     $logJson += "}]";
+#     return $logJson
+# }
 Function Write-OMSLogfile {
     <#
     .SYNOPSIS
@@ -142,60 +197,6 @@ Function Submit-ChunkLAdata ($corejson, $customLogName) {
         Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
     }
 }
-# useful if log source does not provide explicit json, only a csv of property values to reconstruct
-# Function Convert-LogLineToJson([String] $logLine) {
-#     #supporting Functions
-#
-#     Function Convert-SemicolonToURLEncoding([String] $InputText) {
-#         $ReturnText = ""
-#         $chars = $InputText.ToCharArray()
-#         $StartConvert = $false
-#         foreach ($c in $chars) {
-#             if ($c -eq '"') {
-#                 $StartConvert = ! $StartConvert
-#             }
-#             if ($StartConvert -eq $true -and $c -eq ';') {
-#                 $ReturnText += "%3B"
-#             }
-#             else {
-#                 $ReturnText += $c
-#             }
-#         }
-#         return $ReturnText
-#     }
-#     Function ConvertTo-JsonValue($Text) {
-#         $Text1 = ""
-#         if ($Text.IndexOf("`"") -eq 0) { $Text1 = $Text } else { $Text1 = "`"" + $Text + "`"" }
-#         if ($Text1.IndexOf("%3B") -ge 0) {
-#             $ReturnText = $Text1.Replace("%3B", ";")
-#         }
-#         else {
-#             $ReturnText = $Text1
-#         }
-#         return $ReturnText
-#     }
-#     #Convert semicolon to %3B in the log line to avoid wrong split with ";"
-#     $logLineEncoded = Convert-SemicolonToURLEncoding($logLine)
-#     $elements = $logLineEncoded.split(';')
-#     $FormattedElements = New-Object System.Collections.ArrayList
-#     foreach ($element in $elements) {
-#         # Validate if the text starts with ", and add it if not
-#         $NewText = ConvertTo-JsonValue($element)
-#         # Use "> null" to avoid annoying index print in the console
-#         $FormattedElements.Add($NewText) |out-null
-#     }
-#     $Columns = ("col1", "col2")
-#     # Propose json payload
-#     $logJson = "[{";
-#     For ($i = 0; $i -lt $Columns.Length; $i++) {
-#         $logJson += "`"" + $Columns[$i] + "`":" + $FormattedElements[$i]
-#         if ($i -lt $Columns.Length - 1) {
-#             $logJson += ","
-#         }
-#     }
-#     $logJson += "}]";
-#     return $logJson
-# }
 function Set-JsonPropertyNames {
     param (
         [string]$JsonString,
@@ -211,12 +212,9 @@ function Set-JsonPropertyNames {
     for ($i = 0; $i -lt $currentPropertyNames.Count; $i++) {
         $newJsonObject[$NewPropertyNames[$i]] = $jsonObject.$($currentPropertyNames[$i])
     }
-    # Replace escaped characters with standard JSON formatting
-    # $standardJsonString = $newJsonobject -replace '\\r\\n', '' -replace '\\\"', '\"'
-    # $jsonObject = $standardJsonString | ConvertTo-Json -depth 20
     # Convert the JSON object back to a formatted JSON string
     $formattedJsonString = $jsonObject | ConvertTo-Json -Depth 20
-    return $jsonObject
+    return $formattedJsonString
 }
 # # Execution
 #Build the JSON from queue and grab blob path vars
