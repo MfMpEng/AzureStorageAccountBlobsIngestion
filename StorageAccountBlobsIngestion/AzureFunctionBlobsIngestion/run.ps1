@@ -211,13 +211,12 @@ function Set-JsonPropertyNames {
     for ($i = 0; $i -lt $currentPropertyNames.Count; $i++) {
         $newJsonObject[$NewPropertyNames[$i]] = $jsonObject.$($currentPropertyNames[$i])
     }
-    # Convert the updated object back to JSON string without the -Compress flag
     # Replace escaped characters with standard JSON formatting
     $standardJsonString = $newJsonobject -replace '\\r\\n', '' -replace '\\\"', '\"'
     $jsonObject = $standardJsonString | ConvertFrom-Json
     # Convert the JSON object back to a formatted JSON string
-    $formattedJsonString = $jsonObject | ConvertTo-Json -Depth 20
-    return $formattedJsonString
+    # $formattedJsonString = $jsonObject | ConvertTo-Json -Depth 20
+    return $jsonObject
 }
 # # Example usage
 #Build the JSON from queue and grab blob path vars
