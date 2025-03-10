@@ -227,7 +227,10 @@ function Set-JsonPropertyNames {
     # Convert the updated object back to JSON string
     $newJsonString = $newJsonObject | ConvertTo-Json -Compress
 
-    return $newJsonString
+    # Convert the JSON string to a PowerShell object and back to JSON to ensure proper formatting
+    $formattedJsonString = $newJsonString | ConvertFrom-Json | ConvertTo-Json -Compress
+
+    return $formattedJsonString
 }
 
 # # Example usage
