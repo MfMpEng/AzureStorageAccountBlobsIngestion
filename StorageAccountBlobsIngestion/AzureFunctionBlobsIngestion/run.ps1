@@ -246,12 +246,12 @@ Write-Host ("$evtTime Queue Reported new item`nStorage Account Name     Containe
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
 $logPath = [System.IO.Path]::Combine($env:TEMP, $BlobName)
 # Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -force > $null
-if ($BlobPath -notlike "concurrencyStatus.json") {
+if ($BlobPath -like "concurrencyStatus.json") {
     Write-Verbose "Ignoring Concurrency Status file"
     $skipfile = 1;
     $skipNonLog = 1;
 }
-if ($skipNonLog){
+if (!$skipNonLog){
     try {
         Write-Output "Attempting to download blob content..."
         Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force |out-null
