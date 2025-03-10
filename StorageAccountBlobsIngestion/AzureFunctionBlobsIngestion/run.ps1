@@ -147,37 +147,41 @@ Function Submit-ChunkLAdata ($corejson, $customLogName) {
     }
 }
 
-# Function Convert-SemicolonToURLEncoding([String] $InputText) {
-#     $ReturnText = ""
-#     $chars = $InputText.ToCharArray()
-#     $StartConvert = $false
-#     foreach ($c in $chars) {
-#         if ($c -eq '"') {
-#             $StartConvert = ! $StartConvert
+
+# useful if log source does not provide explicit json, only a csv of property values to reconstruct
+# Function Convert-LogLineToJson([String] $logLine) {
+#     #supporting Functions
+#
+#     Function Convert-SemicolonToURLEncoding([String] $InputText) {
+#         $ReturnText = ""
+#         $chars = $InputText.ToCharArray()
+#         $StartConvert = $false
+#         foreach ($c in $chars) {
+#             if ($c -eq '"') {
+#                 $StartConvert = ! $StartConvert
+#             }
+#             if ($StartConvert -eq $true -and $c -eq ';') {
+#                 $ReturnText += "%3B"
+#             }
+#             else {
+#                 $ReturnText += $c
+#             }
 #         }
-#         if ($StartConvert -eq $true -and $c -eq ';') {
-#             $ReturnText += "%3B"
+#         return $ReturnText
+#     }
+
+#     Function ConvertTo-JsonValue($Text) {
+#         $Text1 = ""
+#         if ($Text.IndexOf("`"") -eq 0) { $Text1 = $Text } else { $Text1 = "`"" + $Text + "`"" }
+#         if ($Text1.IndexOf("%3B") -ge 0) {
+#             $ReturnText = $Text1.Replace("%3B", ";")
 #         }
 #         else {
-#             $ReturnText += $c
+#             $ReturnText = $Text1
 #         }
+#         return $ReturnText
 #     }
-#     return $ReturnText
-# }
 
-# Function ConvertTo-JsonValue($Text) {
-#     $Text1 = ""
-#     if ($Text.IndexOf("`"") -eq 0) { $Text1 = $Text } else { $Text1 = "`"" + $Text + "`"" }
-#     if ($Text1.IndexOf("%3B") -ge 0) {
-#         $ReturnText = $Text1.Replace("%3B", ";")
-#     }
-#     else {
-#         $ReturnText = $Text1
-#     }
-#     return $ReturnText
-# }
-
-# Function Convert-LogLineToJson([String] $logLine) {
 #     #Convert semicolon to %3B in the log line to avoid wrong split with ";"
 #     $logLineEncoded = Convert-SemicolonToURLEncoding($logLine)
 #     $elements = $logLineEncoded.split(';')
@@ -186,89 +190,9 @@ Function Submit-ChunkLAdata ($corejson, $customLogName) {
 #         # Validate if the text starts with ", and add it if not
 #         $NewText = ConvertTo-JsonValue($element)
 #         # Use "> null" to avoid annoying index print in the console
-#         $FormattedElements.Add($NewText) > null
+#         $FormattedElements.Add($NewText) |out-null
 #     }
-#     $Columns =
-#     ("F5_timestamp_CF",
-#     "F5_id_CF",
-#     "F5_visitor_id_CF",
-#     "action_CF",
-#     "api_endpoint_CF",
-#     "app_CF",
-#     "app_type_CF",
-#     "as_number_CF",
-#     "as_org_CF",
-#     "asn_CF",
-#     "attack_types_CF",
-#     "authority_CF",
-#     "bot_info_CF",
-#     "browser_type_CF",
-#     "calculated_action_CF",
-#     "city_CF",
-#     "cluster_name_CF",
-#     "country_CF",
-#     "dcid_CF",
-#     "detections_CF",
-#     "device_type_CF",
-#     "domain_CF",
-#     "dst_CF",
-#     "dst_instance_CF",
-#     "dst_ip_CF",
-#     "dst_port_CF",
-#     "dst_site_CF",
-#     "excluded_threat_campaigns_CF",
-#     "hostname_CF",
-#     "http_version_CF",
-#     "is_new_dcid_CF",
-#     "is_truncated_field_CF",
-#     "kubernetes_CF",
-#     "latitude_CF",
-#     "longitude_CF",
-#     "messageid_CF",
-#     "method_CF",
-#     "namespace_CF",
-#     "network_CF",
-#     "no_active_detections_CF",
-#     "original_headers_CF",
-#     "original_path_CF",
-#     "path_CF",
-#     "region_CF",
-#     "req_headers_CF",
-#     "req_headers_size_CF",
-#     "req_id_CF",
-#     "req_params_CF",
-#     "req_path_CF",
-#     "req_size_CF",
-#     "rsp_code_CF",
-#     "rsp_code_class_CF",
-#     "rsp_size_CF",
-#     "sec_event_name_CF",
-#     "sec_event_type_CF",
-#     "severity_CF",
-#     "signatures_CF",
-#     "site_CF",
-#     "sni_CF",
-#     "src_CF",
-#     "src_instance_CF",
-#     "src_ip_CF",
-#     "src_port_CF",
-#     "src_site_CF",
-#     "stream_CF",
-#     "tag_CF",
-#     "tenant_CF",
-#     "threat_campaigns_CF",
-#     "time_CF",
-#     "tls_fingerprint_CF",
-#     "user_CF",
-#     "user_agent_CF",
-#     "vh_name_CF",
-#     "vhost_id_CF",
-#     "violation_details_CF",
-#     "violation_rating_CF",
-#     "violations_CF",
-#     "waf_mode_CF",
-#     "x_forwarded_for_CF"
-#     )
+#     $Columns = ("col1", "col2")
 #     # Propose json payload
 #     $logJson = "[{";
 #     For ($i = 0; $i -lt $Columns.Length; $i++) {
@@ -280,10 +204,40 @@ Function Submit-ChunkLAdata ($corejson, $customLogName) {
 #     $logJson += "}]";
 #     return $logJson
 # }
+function Set-JsonPropertyNames {
+    param (
+        [string]$JsonString,
+        [string[]]$NewPropertyNames
+    )
+
+    # Convert JSON string to PowerShell object
+    $jsonObject = $JsonString | ConvertFrom-Json
+
+    # Get the current property names
+    $currentPropertyNames = $jsonObject.PSObject.Properties.Name
+
+    # Create a new hashtable to store the updated properties
+    $newJsonObject = @{}
+
+    # Replace property names
+    for ($i = 0; $i -lt $currentPropertyNames.Count; $i++) {
+        $newJsonObject[$NewPropertyNames[$i]] = $jsonObject.$($currentPropertyNames[$i])
+    }
+
+    # Convert the updated object back to JSON string
+    $newJsonString = $newJsonObject | ConvertTo-Json -Compress
+
+    return $newJsonString
+}
+
+# # Example usage
+ $f5json = ConvertTo-Json $QueueItem -Depth 20
+ $newPropertyNames = @("F5_timestamp_CF","F5_id_CF","F5_visitor_id_CF","action_CF","api_endpoint_CF","app_CF","app_type_CF","as_number_CF","as_org_CF","asn_CF","attack_types_CF","authority_CF","bot_info_CF","browser_type_CF","calculated_action_CF","city_CF","cluster_name_CF","country_CF","dcid_CF","detections_CF","device_type_CF","domain_CF","dst_CF","dst_instance_CF","dst_ip_CF","dst_port_CF","dst_site_CF","excluded_threat_campaigns_CF","hostname_CF","http_version_CF","is_new_dcid_CF","is_truncated_field_CF","kubernetes_CF","latitude_CF","longitude_CF","messageid_CF","method_CF","namespace_CF","network_CF","no_active_detections_CF","original_headers_CF","original_path_CF","path_CF","region_CF","req_headers_CF","req_headers_size_CF","req_id_CF","req_params_CF","req_path_CF","req_size_CF","rsp_code_CF","rsp_code_class_CF","rsp_size_CF","sec_event_name_CF","sec_event_type_CF","severity_CF","signatures_CF","site_CF","sni_CF","src_CF","src_instance_CF","src_ip_CF","src_port_CF","src_site_CF","stream_CF","tag_CF","tenant_CF","threat_campaigns_CF","time_CF","tls_fingerprint_CF","user_CF","user_agent_CF","vh_name_CF","vhost_id_CF","violation_details_CF","violation_rating_CF","violations_CF","waf_mode_CF","x_forwarded_for_CF")
+ $newJsonString = Set-JsonPropertyNames -JsonString $jsonString -NewPropertyNames $newPropertyNames
 
 #Build the JSON from queue and grab blob path vars
-$QueueMsg           = ConvertTo-Json $QueueItem -Depth 20 #-Compress -Verbose
-$QueueArr           = @(ConvertFrom-Json $QueueMsg);
+# $QueueMsg           = ConvertTo-Json $QueueItem -Depth 20 #-Compress -Verbose
+$QueueArr           = @(ConvertFrom-Json $newJsonString);
 $StorageAccountName = $QueueArr.topic.split('/')[-1]
 $ContainerName      = $QueueArr.subject.split('/')[4]
 $BlobName           = $QueueArr.subject.split('/')[-1]
@@ -299,12 +253,12 @@ Write-Host -ForegroundColor Green ("################# $BlobName ################
 Write-Host -ForegroundColor Green ("######################################################################################")
 Write-Host -ForegroundColor Green ("PowerShell queue trigger function processed work item:" + $QueueItem)
 Write-Host -ForegroundColor Green ("Current Directory           :" + $(Get-Location))
-Write-Host -ForegroundColor Green ("Queue item expiration time  :" + ${$TriggerMetadata.ExpirationTime})
-Write-Host -ForegroundColor Green ("Queue item insertion time   :" + ${TriggerMetadata.InsertionTime})
-Write-Host -ForegroundColor Green ("Queue item next visible time:" + ${TriggerMetadata.NextVisibleTime})
-Write-Host -ForegroundColor Green ("Queue Message ID            :" + ${TriggerMetadata.Id})
-Write-Host -ForegroundColor Green ("Queue Message Pop receipt   :" + ${TriggerMetadata.PopReceipt})
-Write-Host -ForegroundColor Green ("Dequeue count               :" + ${TriggerMetadata.DequeueCount})
+Write-Host -ForegroundColor Green ("Queue item expiration time  :" + $TriggerMetadata.ExpirationTime)
+Write-Host -ForegroundColor Green ("Queue item insertion time   :" + $TriggerMetadata.InsertionTime)
+Write-Host -ForegroundColor Green ("Queue item next visible time:" + $TriggerMetadata.NextVisibleTime)
+Write-Host -ForegroundColor Green ("Queue Message ID            :" + $QueueId)
+Write-Host -ForegroundColor Green ("Queue Message Pop receipt   :" + $QueuePOP)
+Write-Host -ForegroundColor Green ("Dequeue count               :" + $TriggerMetadata.DequeueCount)
 Write-Host -ForegroundColor Green ("Log Analytics URI           :" + $LAURI)
 Write-Host -ForegroundColor Green ("$evtTime Queue Reported new item`nStorage Account Name     Container Name     BlobName`n$StorageAccountName  \  $ContainerName  \  $BlobName")
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
@@ -330,16 +284,16 @@ if($LAPostResult -eq 200) {
     $AzureQueue = Get-AzStorageQueue -Context $AzureStorage -Name $AzureQueueName
     Write-Output ("Dequeuing Trigger ID/popReceipt: '$QueueId :: $QueuePop' From CloudQueue '$AzureQueue'")
     $CloudQueue = $AzureQueue.CloudQueue
-    Write-Debug -Message ("Cloud Queue Reference '$CloudQueue' CloudQueue URI '$'${CloudQueue.uri}")
+    Write-Verbose -Message ("Cloud Queue Reference '$CloudQueue' CloudQueue URI '$'${CloudQueue.uri}")
     if ($null -ne $CloudQueue -and $null -ne $QueueId -and $null -ne $QueuePOP) {
         try {
             $CloudQueue.DeleteMessage($QueueID, $QueuePOP)
         }
         catch {
-            Write-Host "Unable to DeQueue Item from: Queue='$CloudQueue' TriggerMetadata ID : '$queueid' QPOP: '$queuepop'"
+            Write-Warning -Message "Unable to DeQueue Item from: Queue='$CloudQueue' TriggerMetadata ID : '$queueid' QPOP: '$queuepop'"
         }
     } else {
-        Write-Host "Unable to DeQueue Item from: Queue='$CloudQueue' TriggerMetadata ID : '$queueid' QPOP: '$queuepop'"
+        Write-Warning -Message "Unable to DeQueue Item from: Queue='$CloudQueue' TriggerMetadata ID : '$queueid' QPOP: '$queuepop'"
     }
     Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath
     [System.GC]::collect() #cleanup memory
