@@ -12,7 +12,7 @@
     1.1.0 Spec change? required mods
 #>
 # Input bindings are passed in via param block.
-param( [string]$QueueItem, [string]$TriggerMetadata )
+param( [object]$QueueItem, [object]$TriggerMetadata )
 # $VerbosePreference = "Continue"
 # Write out the queue message and metadata to the information log.
 #####Environment Variables
@@ -302,8 +302,8 @@ Write-Host -ForegroundColor Green ("Current Directory           :" + $(Get-Locat
 Write-Host -ForegroundColor Green ("Queue item expiration time  :" + ${$TriggerMetadata.ExpirationTime})
 Write-Host -ForegroundColor Green ("Queue item insertion time   :" + ${TriggerMetadata.InsertionTime})
 Write-Host -ForegroundColor Green ("Queue item next visible time:" + ${TriggerMetadata.NextVisibleTime})
-Write-Host -ForegroundColor Green ("ID                          :" + ${TriggerMetadata.Id})
-Write-Host -ForegroundColor Green ("Pop receipt                 :" + ${TriggerMetadata.PopReceipt})
+Write-Host -ForegroundColor Green ("Queue Message ID            :" + ${TriggerMetadata.Id})
+Write-Host -ForegroundColor Green ("Queue Message Pop receipt   :" + ${TriggerMetadata.PopReceipt})
 Write-Host -ForegroundColor Green ("Dequeue count               :" + ${TriggerMetadata.DequeueCount})
 Write-Host -ForegroundColor Green ("Log Analytics URI           :" + $LAURI)
 Write-Host -ForegroundColor Green ("$evtTime Queue Reported new item`nStorage Account Name     Container Name     BlobName`n$StorageAccountName  \  $ContainerName  \  $BlobName")
