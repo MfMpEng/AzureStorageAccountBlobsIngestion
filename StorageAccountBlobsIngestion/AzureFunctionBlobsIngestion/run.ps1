@@ -27,7 +27,6 @@ if($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-Z
     Write-Error -Message "Storage Account Blobs Ingestion: Invalid Log Analytics Uri." -ErrorAction Stop
 	Exit
 }
-
 # useful if log source does not provide explicit json, only a csv of property values to reconstruct
 # Function Convert-LogLineToJson([String] $logLine) {
 #     #supporting Functions
@@ -199,10 +198,12 @@ Function Submit-ChunkLAdata ($corejson, $customLogName) {
 }
 function Set-JsonPropertyNames {
     param (
-        [string]$JsonString,
-        [string[]]$NewPropertyNames
+        [string]$rawJson,
+        [hashtable]$newNames
     )
-    $jsonObj = ConvertFrom-Json $JsonString
+    # Convert the raw JSON primitive to a PowerShell object
+    $data = $rawJson | ConvertFrom-Json
+    # Rename the properties
     foreach ($obj in $data) {
         foreach ($oldName in $newNames.Keys) {
             if ($obj.PSObject.Properties[$oldName]) {
@@ -211,9 +212,9 @@ function Set-JsonPropertyNames {
             }
         }
     }
-    # Write the updated data back to the NDJSON file
-    $renamedJson = $jsonObj | ConvertTo-Json
-    return $renamedJson
+    # Convert the updated data back to JSON
+    $updatedJson = $data | ConvertTo-Json -Compress
+    return $updatedJson
 }
 # # Execution
 #Build the JSON from queue and grab blob path vars
