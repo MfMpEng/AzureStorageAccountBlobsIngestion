@@ -331,10 +331,15 @@ if($LAPostResult -eq 200) {
     Write-Output ("Dequeuing Trigger ID/popReceipt: '$QueueId :: $QueuePop' From CloudQueue '$AzureQueue'")
     $CloudQueue = $AzureQueue.CloudQueue
     Write-Debug -Message ("Cloud Queue Reference '$CloudQueue' CloudQueue URI '$'${CloudQueue.uri}")
-    if ($null -ne $CloudQueue -and $null -ne $TriggerMetadata -and $null -ne $QueueId -and $null -ne $QueuePOP) {
-        <#$Null =#> $CloudQueue.DeleteMessage($QueueID, $QueuePOP)
+    if ($null -ne $CloudQueue -and $null -ne $QueueId -and $null -ne $QueuePOP) {
+        try {
+            $CloudQueue.DeleteMessage($QueueID, $QueuePOP)
+        }
+        catch {
+            Write-Host "Unable to DeQueue Item from: Queue='$CloudQueue' TriggerMetadata ID : '$queueid' QPOP: '$queuepop'"
+        }
     } else {
-        Write-Host "Unable to DeQueue Item from: Queue='$AzureQueue' TriggerMetadata: '$TriggerMetadata'"
+        Write-Host "Unable to DeQueue Item from: Queue='$CloudQueue' TriggerMetadata ID : '$queueid' QPOP: '$queuepop'"
     }
     Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath
     [System.GC]::collect() #cleanup memory
