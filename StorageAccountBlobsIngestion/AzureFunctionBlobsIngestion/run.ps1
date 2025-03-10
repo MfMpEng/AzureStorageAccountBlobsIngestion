@@ -213,7 +213,7 @@ function Set-JsonPropertyNames {
         $newJsonObject[$NewPropertyNames[$i]] = $jsonObject.$($currentPropertyNames[$i])
     }
     # Convert the JSON object back to a formatted JSON string
-    $formattedJsonString = $jsonObject | ConvertTo-Json -Depth 20
+    $formattedJsonString = $newjsonObject | ConvertTo-Json -Depth 20
     return $formattedJsonString
 }
 # # Execution
