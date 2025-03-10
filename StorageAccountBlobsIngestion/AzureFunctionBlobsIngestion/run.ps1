@@ -329,8 +329,10 @@ if($LAPostResult -eq 200) {
     # Connect to Storage Queue to remove message on successful log processing
     $AzureQueue = Get-AzStorageQueue -Context $AzureStorage -Name $AzureQueueName
     Write-Output ("Dequeuing Trigger ID/popReceipt: '$QueueId :: $QueuePop' From CloudQueue '$AzureQueue'")
-    if ($null -ne $AzureQueue -and $null -ne $TriggerMetadata -and $null -ne $QueueId -and $null -ne $QueuePOP -and 0 -ne $AzureQueue.Length -and 0 -ne $TriggerMetadata.length -and 0 -ne $QueueId.length -and 0 -ne $QueuePOP.length) {
-        <#$Null =#> $AzureQueue.CloudQueue.DeleteMessage($QueueID, $QueuePOP)
+    $CloudQueue = $AzureQueue.CloudQueue
+    Write-Debug -Message ("Cloud Queue Reference '$CloudQueue' CloudQueue URI '$'${CloudQueue.uri}")
+    if ($null -ne $CloudQueue -and $null -ne $TriggerMetadata -and $null -ne $QueueId -and $null -ne $QueuePOP) {
+        <#$Null =#> $CloudQueue.DeleteMessage($QueueID, $QueuePOP)
     } else {
         Write-Host "Unable to DeQueue Item from: Queue='$AzureQueue' TriggerMetadata: '$TriggerMetadata'"
     }
