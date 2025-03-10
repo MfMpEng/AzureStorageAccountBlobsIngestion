@@ -234,7 +234,7 @@ function Set-JsonPropertyNames {
 
 #Build the JSON from queue and grab blob path vars
 $QueueMsg           = ConvertTo-Json $QueueItem -Depth 20 #-Compress -Verbose
-$QueueArr           = @(ConvertFrom-Json $newJsonString);
+$QueueArr           = @(ConvertFrom-Json $QueueMsg);
 $StorageAccountName = $QueueArr.topic.split('/')[-1]
 $ContainerName      = $QueueArr.subject.split('/')[4]
 $BlobName           = $QueueArr.subject.split('/')[-1]
