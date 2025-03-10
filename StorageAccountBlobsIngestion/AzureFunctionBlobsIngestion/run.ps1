@@ -211,8 +211,8 @@ function Set-JsonPropertyNames {
     for ($i = 0; $i -lt $currentPropertyNames.Count; $i++) {
         $newJsonObject[$NewPropertyNames[$i]] = $jsonObject.$($currentPropertyNames[$i])
     }
-    # Convert the updated object back to JSON string
-    $newJsonString = $newJsonObject | ConvertTo-Json
+    # Convert the updated object back to JSON string without the -Compress flag
+    $newJsonString = $newJsonObject | ConvertTo-Json -Depth 20 | ConvertTo-Json -Depth 20
     return $newJsonString
 }
 # # Example usage
