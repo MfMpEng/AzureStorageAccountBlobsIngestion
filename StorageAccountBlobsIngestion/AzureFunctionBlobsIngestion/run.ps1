@@ -214,7 +214,7 @@ function Set-JsonPropertyNames {
     }
     # $standardJsonString = $newJsonobject -replace '\\r\\n', '' -replace '\\\"', '\"'
     # Convert the JSON object back to a formatted JSON string
-    $jsonObject = $standardJsonString | ConvertTo-Json -depth 20
+    $jsonObject = $newJsonObject | ConvertTo-Json -depth 20
     return $jsonObject
 }
 # # Execution
