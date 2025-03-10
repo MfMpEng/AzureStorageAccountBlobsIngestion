@@ -202,20 +202,18 @@ function Set-JsonPropertyNames {
         [string]$JsonString,
         [string[]]$NewPropertyNames
     )
-    # Convert JSON string to PowerShell object
-    $jsonObject = $JsonString | ConvertFrom-Json
-    # Get the current property names
-    $currentPropertyNames = $jsonObject.PSObject.Properties.Name
-    # Create a new hashtable to store the updated properties
-    $newJsonObject = @{}
-    # Replace property names
-    for ($i = 0; $i -lt $currentPropertyNames.Count; $i++) {
-        $newJsonObject[$NewPropertyNames[$i]] = $jsonObject.$($currentPropertyNames[$i])
+    $jsonObj = ConvertFrom-Json $JsonString
+    foreach ($obj in $data) {
+        foreach ($oldName in $newNames.Keys) {
+            if ($obj.PSObject.Properties[$oldName]) {
+                $obj.PSObject.Properties[$newNames[$oldName]] = $obj.PSObject.Properties[$oldName].Value
+                $obj.PSObject.Properties.Remove($oldName)
+            }
+        }
     }
-    # $standardJsonString = $newJsonobject -replace '\\r\\n', '' -replace '\\\"', '\"'
-    # Convert the JSON object back to a formatted JSON string
-    $jsonObject = $newJsonObject | ConvertTo-Json -depth 20
-    return $jsonObject
+    # Write the updated data back to the NDJSON file
+    $renamedJson = $jsonObj | ConvertTo-Json
+    return $renamedJson
 }
 # # Execution
 #Build the JSON from queue and grab blob path vars
@@ -269,8 +267,88 @@ if (!$skipNonLog){
 }
 if (!$skipfile -and !$skipNonLog) {
     # TODO: param-ize custom prop name list
-    $newPropertyNames = @("F5_timestamp_CF", "F5_id_CF", "F5_visitor_id_CF", "action_CF", "api_endpoint_CF", "app_CF", "app_type_CF", "as_number_CF", "as_org_CF", "asn_CF", "attack_types_CF", "authority_CF", "bot_info_CF", "browser_type_CF", "calculated_action_CF", "city_CF", "cluster_name_CF", "country_CF", "dcid_CF", "detections_CF", "device_type_CF", "domain_CF", "dst_CF", "dst_instance_CF", "dst_ip_CF", "dst_port_CF", "dst_site_CF", "excluded_threat_campaigns_CF", "hostname_CF", "http_version_CF", "is_new_dcid_CF", "is_truncated_field_CF", "kubernetes_CF", "latitude_CF", "longitude_CF", "messageid_CF", "method_CF", "namespace_CF", "network_CF", "no_active_detections_CF", "original_headers_CF", "original_path_CF", "path_CF", "region_CF", "req_headers_CF", "req_headers_size_CF", "req_id_CF", "req_params_CF", "req_path_CF", "req_size_CF", "rsp_code_CF", "rsp_code_class_CF", "rsp_size_CF", "sec_event_name_CF", "sec_event_type_CF", "severity_CF", "signatures_CF", "site_CF", "sni_CF", "src_CF", "src_instance_CF", "src_ip_CF", "src_port_CF", "src_site_CF", "stream_CF", "tag_CF", "tenant_CF", "threat_campaigns_CF", "time_CF", "tls_fingerprint_CF", "user_CF", "user_agent_CF", "vh_name_CF", "vhost_id_CF", "violation_details_CF", "violation_rating_CF", "violations_CF", "waf_mode_CF", "x_forwarded_for_CF")
-    $newJsonString = Set-JsonPropertyNames -JsonString $logsFromFile -NewPropertyNames $newPropertyNames -verbose
+    $PropNameReplDict = @{
+        "@timestamp"                = "F5_timestamp_CF"
+        "_id"                       = "F5_id_CF"
+        "_visitor_id"               = "F5_visitor_id_CF"
+        "action"                    = "action_CF"
+        "api_endpoint"              = "api_endpoint_CF"
+        "app"                       = "app_CF"
+        "app_type"                  = "app_type_CF"
+        "as_number"                 = "as_number_CF"
+        "as_org"                    = "as_org_CF"
+        "asn"                       = "asn_CF"
+        "attack_types"              = "attack_types_CF"
+        "authority"                 = "authority_CF"
+        "bot_info"                  = "bot_info_CF"
+        "browser_type"              = "browser_type_CF"
+        "calculated_action"         = "calculated_action_CF"
+        "city"                      = "city_CF"
+        "cluster_name"              = "cluster_name_CF"
+        "country"                   = "country_CF"
+        "dcid"                      = "dcid_CF"
+        "detections"                = "detections_CF"
+        "device_type"               = "device_type_CF"
+        "domain"                    = "domain_CF"
+        "dst"                       = "dst_CF"
+        "dst_instance"              = "dst_instance_CF"
+        "dst_ip"                    = "dst_ip_CF"
+        "dst_port"                  = "dst_port_CF"
+        "dst_site"                  = "dst_site_CF"
+        "excluded_threat_campaigns" = "excluded_threat_campaigns_CF"
+        "hostname"                  = "hostname_CF"
+        "http_version"              = "http_version_CF"
+        "is_new_dcid"               = "is_new_dcid_CF"
+        "is_truncated_field"        = "is_truncated_field_CF"
+        "kubernetes"                = "kubernetes_CF"
+        "latitude"                  = "latitude_CF"
+        "longitude"                 = "longitude_CF"
+        "messageid"                 = "messageid_CF"
+        "method"                    = "method_CF"
+        "namespace"                 = "namespace_CF"
+        "network"                   = "network_CF"
+        "no_active_detections"      = "no_active_detections_CF"
+        "original_headers"          = "original_headers_CF"
+        "original_path"             = "original_path_CF"
+        "path"                      = "path_CF"
+        "region"                    = "region_CF"
+        "req_headers"               = "req_headers_CF"
+        "req_headers_size"          = "req_headers_size_CF"
+        "req_id"                    = "req_id_CF"
+        "req_params"                = "req_params_CF"
+        "req_path"                  = "req_path_CF"
+        "req_size"                  = "req_size_CF"
+        "rsp_code"                  = "rsp_code_CF"
+        "rsp_code_class"            = "rsp_code_class_CF"
+        "rsp_size"                  = "rsp_size_CF"
+        "sec_event_name"            = "sec_event_name_CF"
+        "sec_event_type"            = "sec_event_type_CF"
+        "severity"                  = "severity_CF"
+        "signatures"                = "signatures_CF"
+        "site"                      = "site_CF"
+        "sni"                       = "sni_CF"
+        "src"                       = "src_CF"
+        "src_instance"              = "src_instance_CF"
+        "src_ip"                    = "src_ip_CF"
+        "src_port"                  = "src_port_CF"
+        "src_site"                  = "src_site_CF"
+        "stream"                    = "stream_CF"
+        "tag"                       = "tag_CF"
+        "tenant"                    = "tenant_CF"
+        "threat_campaigns"          = "threat_campaigns_CF"
+        "time"                      = "time_CF"
+        "tls_fingerprint"           = "tls_fingerprint_CF"
+        "user"                      = "user_CF"
+        "user_agent"                = "user_agent_CF"
+        "vh_name"                   = "vh_name_CF"
+        "vhost_id"                  = "vhost_id_CF"
+        "violation_details"         = "violation_details_CF"
+        "violation_rating"          = "violation_rating_CF"
+        "violations"                = "violations_CF"
+        "waf_mode"                  = "waf_mode_CF"
+        "x_forwarded_for"           = "x_forwarded_for_CF"
+    }
+    $newJsonString = Set-JsonPropertyNames -JsonString $logsFromFile -NewPropertyNames $PropNameReplDict -verbose
     # $json = Convert-LogLineToJson($log)
     $LAPostResult = Submit-ChunkLAdata -Verbose -Corejson $newJsonString -CustomLogName $LATableName -verbose
 }
