@@ -248,22 +248,35 @@ Write-Host ("$evtTime Queue Reported new item`nStorage Account Name     Containe
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
 $logPath = [System.IO.Path]::Combine($env:TEMP, $BlobName)
 # Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -force > $null
-try {
-    Write-Output "Attempting to download blob content..."
-    Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force |out-null
-    Write-Output "Blob content downloaded to $logPath"
+if ($BlobPath -match "*concurrencyStatus.json") {
+    Write-Verbose "Ignoring Concurrency Status file"
+    $skipfile = 1;
+    $skipNonLog = 1;
 }
-catch {
-    Write-Output "Error downloading blob content: $_"
+if ($skipNonLog){
+    try {
+        Write-Output "Attempting to download blob content..."
+        Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force |out-null
+        Write-Output "Blob content downloaded to $logPath"
+    }
+    catch {
+        Write-Output "Error downloading blob content: $_"
+    }
+    $logsFromFile = Get-Content -Path $logPath -Raw
+    if ($logsFromFile.length -eq 0) {
+        Write-Verbose "Ignoring empty logfile";
+        $skipfile = 1;
+    }
 }
-$logsFromFile = Get-Content -Path $logPath -Raw
-# TODO: param-ize custom prop name list
-$newPropertyNames = @("F5_timestamp_CF", "F5_id_CF", "F5_visitor_id_CF", "action_CF", "api_endpoint_CF", "app_CF", "app_type_CF", "as_number_CF", "as_org_CF", "asn_CF", "attack_types_CF", "authority_CF", "bot_info_CF", "browser_type_CF", "calculated_action_CF", "city_CF", "cluster_name_CF", "country_CF", "dcid_CF", "detections_CF", "device_type_CF", "domain_CF", "dst_CF", "dst_instance_CF", "dst_ip_CF", "dst_port_CF", "dst_site_CF", "excluded_threat_campaigns_CF", "hostname_CF", "http_version_CF", "is_new_dcid_CF", "is_truncated_field_CF", "kubernetes_CF", "latitude_CF", "longitude_CF", "messageid_CF", "method_CF", "namespace_CF", "network_CF", "no_active_detections_CF", "original_headers_CF", "original_path_CF", "path_CF", "region_CF", "req_headers_CF", "req_headers_size_CF", "req_id_CF", "req_params_CF", "req_path_CF", "req_size_CF", "rsp_code_CF", "rsp_code_class_CF", "rsp_size_CF", "sec_event_name_CF", "sec_event_type_CF", "severity_CF", "signatures_CF", "site_CF", "sni_CF", "src_CF", "src_instance_CF", "src_ip_CF", "src_port_CF", "src_site_CF", "stream_CF", "tag_CF", "tenant_CF", "threat_campaigns_CF", "time_CF", "tls_fingerprint_CF", "user_CF", "user_agent_CF", "vh_name_CF", "vhost_id_CF", "violation_details_CF", "violation_rating_CF", "violations_CF", "waf_mode_CF", "x_forwarded_for_CF")
-$newJsonString = Set-JsonPropertyNames -JsonString $logsFromFile -NewPropertyNames $newPropertyNames -verbose
-# $json = Convert-LogLineToJson($log)
-# $formalizedJson = ( [System.Text.Encoding]::UTF8.GetBytes($json))
-$LAPostResult = Submit-ChunkLAdata -Verbose -Corejson $newJsonString -CustomLogName $LATableName -verbose
-if($LAPostResult -eq 200) {
+if (!$skipfile) {
+    # TODO: param-ize custom prop name list
+    $newPropertyNames = @("F5_timestamp_CF", "F5_id_CF", "F5_visitor_id_CF", "action_CF", "api_endpoint_CF", "app_CF", "app_type_CF", "as_number_CF", "as_org_CF", "asn_CF", "attack_types_CF", "authority_CF", "bot_info_CF", "browser_type_CF", "calculated_action_CF", "city_CF", "cluster_name_CF", "country_CF", "dcid_CF", "detections_CF", "device_type_CF", "domain_CF", "dst_CF", "dst_instance_CF", "dst_ip_CF", "dst_port_CF", "dst_site_CF", "excluded_threat_campaigns_CF", "hostname_CF", "http_version_CF", "is_new_dcid_CF", "is_truncated_field_CF", "kubernetes_CF", "latitude_CF", "longitude_CF", "messageid_CF", "method_CF", "namespace_CF", "network_CF", "no_active_detections_CF", "original_headers_CF", "original_path_CF", "path_CF", "region_CF", "req_headers_CF", "req_headers_size_CF", "req_id_CF", "req_params_CF", "req_path_CF", "req_size_CF", "rsp_code_CF", "rsp_code_class_CF", "rsp_size_CF", "sec_event_name_CF", "sec_event_type_CF", "severity_CF", "signatures_CF", "site_CF", "sni_CF", "src_CF", "src_instance_CF", "src_ip_CF", "src_port_CF", "src_site_CF", "stream_CF", "tag_CF", "tenant_CF", "threat_campaigns_CF", "time_CF", "tls_fingerprint_CF", "user_CF", "user_agent_CF", "vh_name_CF", "vhost_id_CF", "violation_details_CF", "violation_rating_CF", "violations_CF", "waf_mode_CF", "x_forwarded_for_CF")
+    $newJsonString = Set-JsonPropertyNames -JsonString $logsFromFile -NewPropertyNames $newPropertyNames -verbose
+    # $json = Convert-LogLineToJson($log)
+    # $formalizedJson = ( [System.Text.Encoding]::UTF8.GetBytes($json))
+    $LAPostResult = Submit-ChunkLAdata -Verbose -Corejson $newJsonString -CustomLogName $LATableName -verbose
+}
+if($LAPostResult -eq 200 -or $skipfile -eq 1) {
     Remove-Item $logPath
     Write-Output ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
     # Connect to Storage Queue to remove message on successful log processing
