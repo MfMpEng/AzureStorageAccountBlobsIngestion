@@ -332,11 +332,12 @@ Write-Host ("Log Analytics URI           :" + $LAURI)
 Write-Host ("$evtTime Queue Reported new item`nStorage Account Name     Container Name     BlobName`n$StorageAccountName  \  $ContainerName  \  $BlobName")
 
 # Skip processing of non-relevant files that got written to the storage container
-if ($BlobPath -notlike ".log") {
+if ($BlobPath -notlike "*.log") {
     Write-Verbose "Ignoring ConcurrencyStatus.json/non-Log file"
     $skipfile = 1;
     $skipNonLog = 1;
 }
+
 # LogFile Collection and check/skip empty
 if (!$skipNonLog){
     try {
