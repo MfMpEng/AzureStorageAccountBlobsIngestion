@@ -132,7 +132,7 @@ Function Write-OMSLogfile {
         [parameter(Mandatory = $true, Position = 1)]
         [string]$type,
         [Parameter(Mandatory = $true, Position = 2)]
-        [string]$logdata,
+        [psobject]$logdata,
         [Parameter(Mandatory = $true, Position = 3)]
         [string]$CustomerID,
         [Parameter(Mandatory = $true, Position = 4)]
@@ -158,7 +158,7 @@ Function Write-OMSLogfile {
         $ContentType = 'application/json'
         $resource = '/api/logs'
         $rfc1123date = (Get-Date).ToString('r')
-        $utcEvtTime = $datetime.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+        $Iso8601ZventTime = $datetime.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
         $ContentLength = $Body.Length
         $signature = Build-Signature `
             -customerId $CustomerID `
@@ -173,7 +173,7 @@ Function Write-OMSLogfile {
             "Authorization"        = $signature;
             "Log-Type"             = $type;
             "x-ms-date"            = $rfc1123date;
-            "time-generated-field" = $utcEvtTime;
+            "time-generated-field" = $Iso8601ZventTime;
         }
         $response = Invoke-WebRequest -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $body -UseBasicParsing  -Verbose
         Write-Verbose -Message ('Post Function Return Code ' + $response.statuscode)
