@@ -15,7 +15,7 @@
 param( [object]$QueueItem, [object]$TriggerMetadata )
 $QueueItem = [PSObject]::AsPSObject($QueueItem)
 $TriggerMetadata = [PSObject]::AsPSObject($TriggerMetadata)
-$VerbosePreference = "Continue"
+# $VerbosePreference = "Continue"
 # Write out the queue message and metadata to the information log.
 #####Environment Variables
 $AzureWebJobsStorage = $env:AzureWebJobsStorage
@@ -402,6 +402,7 @@ if ($skipNonLog -ne 1){
 # Process/Submit json primitive
 if ($skipfile -ne 1 -and $skipNonLog -ne 1) {
     $encodedJson = [System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($logsFromFile))
+    Write-Output "UTF8 Json From File`n$encodedJson"
     $confirmedJson = Confirm-Json $encodedJson
     if (!$confirmedJson){$skipfile = 1}else {
         $renamedJsonPrimative = Rename-JsonProperties -rawJson $encodedJson -Verbose
