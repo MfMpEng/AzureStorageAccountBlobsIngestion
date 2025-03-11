@@ -13,7 +13,7 @@
 #>
 # Input bindings are passed in via param block.
 param( [object]$QueueItem, [object]$TriggerMetadata )
-# $VerbosePreference = "Continue"
+$VerbosePreference = "Continue"
 # Write out the queue message and metadata to the information log.
 #####Environment Variables
 $AzureWebJobsStorage = $env:AzureWebJobsStorage
@@ -130,7 +130,7 @@ Function Write-OMSLogfile {
         [parameter(Mandatory = $true, Position = 1)]
         [string]$type,
         [Parameter(Mandatory = $true, Position = 2)]
-        [psobject]$logdata,
+        [string]$logdata,
         [Parameter(Mandatory = $true, Position = 3)]
         [string]$CustomerID,
         [Parameter(Mandatory = $true, Position = 4)]
@@ -138,16 +138,16 @@ Function Write-OMSLogfile {
     )
     # Supporting Functions
     # Function to create the auth signature
-    Function Build-Signature ($customerId, $sharedKey, $date, $contentLength, $method, $contentType, $resource) {
-        $xHeaders = "x-ms-date:" + $date
+    function Build-signature ($CustomerID, $SharedKey, $Date, $ContentLength, $method, $ContentType, $resource) {
+        $xheaders = 'x-ms-date:' + $Date
         $stringToHash = $method + "`n" + $contentLength + "`n" + $contentType + "`n" + $xHeaders + "`n" + $resource
-        $bytesToHash = [Text.Encoding]::UTF8.GetBytes($stringToHash)
-        $keyBytes = [Convert]::FromBase64String($sharedKey)
+        $bytesToHash = [text.Encoding]::UTF8.GetBytes($stringToHash)
+        $keyBytes = [Convert]::FromBase64String($SharedKey)
         $sha256 = New-Object System.Security.Cryptography.HMACSHA256
-        $sha256.Key = $keyBytes
-        $calculatedHash = $sha256.ComputeHash($bytesToHash)
-        $encodedHash = [Convert]::ToBase64String($calculatedHash)
-        $authorization = 'SharedKey {0}:{1}' -f $customerId, $encodedHash
+        $sha256.key = $keyBytes
+        $calculateHash = $sha256.ComputeHash($bytesToHash)
+        $encodeHash = [convert]::ToBase64String($calculateHash)
+        $authorization = 'SharedKey {0}:{1}' -f $CustomerID, $encodeHash
         return $authorization
     }
     # Function to create and post the request
@@ -166,14 +166,14 @@ Function Write-OMSLogfile {
             -method $method `
             -contentType $ContentType `
             -resource $resource
-		$uri = $LAURI.Trim() + $resource + "?api-version=2016-04-01"
+        $uri = $LAURI.Trim() + $resource + "?api-version=2016-04-01"
         $headers = @{
             "Authorization"        = $signature;
             "Log-Type"             = $type;
             "x-ms-date"            = $rfc1123date;
             "time-generated-field" = $utcEvtTime;
         }
-        $response = Invoke-WebRequest -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $Body -UseBasicParsing -Verbose
+        $response = Invoke-WebRequest -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $body -UseBasicParsing  -Verbose
         Write-Verbose -Message ('Post Function Return Code ' + $response.statuscode)
         return $response.statuscode
     }
@@ -323,7 +323,7 @@ function Rename-JsonProperties {
         "violations"                = "violations_CF";
         "waf_mode"                  = "waf_mode_CF";
         "x_forwarded_for"           = "x_forwarded_for_CF";
-       #"TimeGenerated"             = "TimeGenerated";
+        #"TimeGenerated"             = "TimeGenerated";
     }
     # Rename the properties
     foreach ($jsonProp in $modJson) {
@@ -344,7 +344,6 @@ function Confirm-Json {
     param (
         [string]$jsonString
     )
-
     try {
         $null = $jsonString | ConvertFrom-Json
         Write-Output "Valid JSON"
