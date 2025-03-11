@@ -506,7 +506,7 @@
             "scope": "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', variables('StgActName'), 'default', variables('StgCntName'))]",
             "properties": {
                 "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', variables('StorageBlobDataContributorRoleID'))]",
-                "principalId": "[resourceid(concat('Microsoft.Web/sites/', variables('FunctionName')))]"
+                "principalId": "[resourceid('Microsoft.Web/sites/', variables('FunctionName'))]"
             },
             "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('StgActName'))]",
