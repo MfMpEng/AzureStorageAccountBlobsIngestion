@@ -13,6 +13,8 @@
 #>
 # Input bindings are passed in via param block.
 param( [object]$QueueItem, [object]$TriggerMetadata )
+$QueueItem = [PSObject]::AsPSObject($QueueItem)
+$TriggerMetadata = [PSObject]::AsPSObject($TriggerMetadata)
 $VerbosePreference = "Continue"
 # Write out the queue message and metadata to the information log.
 #####Environment Variables
@@ -229,7 +231,7 @@ function Expand-JsonGzip {
     $jsonStream.Close()
     $gzipStream.Close()
     # Read the JSON content from the decompressed .json file
-    $jsonContent = Get-Content -Path $jsonFilePath -Raw
+    $jsonContent = Get-Content -Path $jsonFilePath -Raw|ConvertTo-Json -Depth 20
     # Remove the decompressed .json file
     Remove-Item -Path $jsonFilePath
     # Output the JSON content
@@ -381,7 +383,6 @@ if ($BlobName -notmatch "\.log$|\.gzip$") {
 # LogFile get/read (check/skip empty)
 if ($skipNonLog -ne 1){
     try {
-        Write-Host "Attempting to download blob content..."
         Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force |out-null
         Write-Host "Blob content downloaded to $logPath"
     }
@@ -391,7 +392,7 @@ if ($skipNonLog -ne 1){
     if ($BlobName -like "*gzip") {
         Expand-JsonGzip $logPath
     }else{
-        $logsFromFile = Get-Content -Path $logPath -Raw
+        $logsFromFile = Get-Content -Path $logPath -Raw|ConvertTo-Json -Depth 20
     }
     if ($logsFromFile.length -eq 0 -or $null -eq $logsFromFile) {
         Write-Verbose -Message ("Ignoring empty logfile" + $BlobName);
