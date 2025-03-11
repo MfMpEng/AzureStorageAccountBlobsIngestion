@@ -178,10 +178,10 @@ Function Write-OMSLogfile {
         return $response.statuscode
     }
     #Build the JSON file
-    $logMessage = ($logdata | ConvertTo-Json -Depth 20)
+    # $logMessage = ($logdata | ConvertTo-Json -Depth 20)
     Write-Verbose -Message ("Log Message POST Body:`n" + $logMessage)
     #Submit the data
-    $returnCode = Submit-OMSPostReq -CustomerID $CustomerID -SharedKey $SharedKey -Body $logMessage -Type $type -Verbose
+    $returnCode = Submit-OMSPostReq -CustomerID $CustomerID -SharedKey $SharedKey -Body $logdata -Type $type -Verbose
     Write-Verbose -Message ("Post Statement Return Code " + $returnCode)
     return $returnCode
 }
@@ -311,7 +311,7 @@ function Rename-JsonProperties {
         }
     }
     # Convert the updated data back to JSON
-    $updatedJson = $modJson | ConvertTo-Json
+    $updatedJson = $modJson | ConvertTo-Json -Depth 20
     return $updatedJson
 }
 
