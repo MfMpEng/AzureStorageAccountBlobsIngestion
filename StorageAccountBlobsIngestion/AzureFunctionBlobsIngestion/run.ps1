@@ -339,7 +339,7 @@ if ($BlobName -notlike "*.log") {
 }
 
 # LogFile Collection and check/skip empty
-if (!$skipNonLog){
+if ($skipNonLog -ne 1){
     try {
         Write-Output "Attempting to download blob content..."
         Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force |out-null
@@ -355,7 +355,7 @@ if (!$skipNonLog){
     }
 }
 
-if (!$skipfile -and !$skipNonLog) {
+if ($skipfile -ne 1 -and $skipNonLog -ne 1) {
     $encodedJson = [System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($logsFromFile))
     $renamedJsonPrimative = Rename-JsonProperties -rawJson $encodedJson -verbose
     # If log source does not contain table headers
