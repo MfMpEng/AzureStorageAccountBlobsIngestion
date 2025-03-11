@@ -40,7 +40,7 @@ $skipfile = $false;
 #check that fn host env vars' workspace ID is valid and that we're sending to LA HTTP REST
 if($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-Z\.]+)$')
 {
-    Write-Error -Message "Storage Account Blobs Ingestion: Invalid Log Analytics Uri." -ErrorAction Stop
+    Write-Error -Message ("Storage Account Blobs Ingestion: Invalid Log Analytics Uri." + $LAURI) -ErrorAction Stop
 	Exit
 }
 # useful if log source does not provide explicit json, only a csv of property values to reconstruct
@@ -196,7 +196,7 @@ Function Submit-ChunkLAdata ($corejson, $customLogName) {
             $tempDataSize += ($record | ConvertTo-Json -depth 20).Length
             if ($tempDataSize -gt 25MB) {
                 Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $tempdata -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
-                write-Host "Sending dataset = $TempDataSize"
+                Write-Host "Sending dataset = $TempDataSize"
                 $tempdata = $null
                 $tempdata = @()
                 $tempDataSize = 0
@@ -209,6 +209,31 @@ Function Submit-ChunkLAdata ($corejson, $customLogName) {
         #Send to Log A as is
         Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
     }
+}
+function Expand-JsonGzip {
+    param (
+        [string]$logpath
+    )
+    # Define the path to the decompressed .json file
+    $jsonFilePath = [System.IO.Path]::ChangeExtension($logpath, ".json")
+    # Open the .gzip file for reading
+    $gzipStream = [System.IO.File]::OpenRead($logpath)
+    # Create a GzipStream object for decompression
+    $decompressStream = New-Object System.IO.Compression.GzipStream($gzipStream, [System.IO.Compression.CompressionMode]::Decompress)
+    # Create a FileStream object to write the decompressed content to a .json file
+    $jsonStream = [System.IO.File]::Create($jsonFilePath)
+    # Copy the decompressed content to the .json file
+    $decompressStream.CopyTo($jsonStream)
+    # Close the streams
+    $decompressStream.Close()
+    $jsonStream.Close()
+    $gzipStream.Close()
+    # Read the JSON content from the decompressed .json file
+    $jsonContent = Get-Content -Path $jsonFilePath -Raw
+    # Remove the decompressed .json file
+    Remove-Item -Path $jsonFilePath
+    # Output the JSON content
+    return $jsonContent
 }
 function Rename-JsonProperties {
     param ([string]$rawJson )
@@ -314,89 +339,91 @@ function Rename-JsonProperties {
     $updatedJson = $modJson | ConvertTo-Json -Depth 20
     return $updatedJson
 }
-
+Function Write-LogHeader{
+    Write-Host ("######################################################################################")
+    Write-Host ("######################### BEGIN NEW TRANSACTION ######################################")
+    Write-Host ("################# $BlobName ################")
+    Write-Host ("######################################################################################")
+    Write-Host ("Dequeue count               :" + $TriggerMetadata.DequeueCount)
+    Write-Host ("PowerShell queue trigger function processed work item:" + $QueueItem)
+    Write-Host ("Log Analytics URI           :" + $LAURI)
+    Write-Host ("Queue Message ID            :" + $QueueId)
+    Write-Host ("Queue Message Pop receipt   :" + $QueuePOP)
+    Write-Host ("Current Directory           :" + $(Get-Location))
+    Write-Host ("Queue item expiration time  :" + $TriggerMetadata.ExpirationTime)
+    Write-Host ("Queue item insertion time   :" + $TriggerMetadata.InsertionTime)
+    Write-Host ("Queue item next visible time:" + $TriggerMetadata.NextVisibleTime)
+    Write-Host ("$evtTime Queue Reported new item - BlobName:  $BlobName")
+}
 ##### Execution
-Write-Host ("######################################################################################")
-Write-Host ("######################### BEGIN NEW TRANSACTION ######################################")
-Write-Host ("################# $BlobName ################")
-Write-Host ("######################################################################################")
-Write-Host ("Dequeue count               :" + $TriggerMetadata.DequeueCount)
-Write-Host ("PowerShell queue trigger function processed work item:" + $QueueItem)
-Write-Host ("Log Analytics URI           :" + $LAURI)
-Write-Host ("Queue Message ID            :" + $QueueId)
-Write-Host ("Queue Message Pop receipt   :" + $QueuePOP)
-Write-Host ("Current Directory           :" + $(Get-Location))
-Write-Host ("Queue item expiration time  :" + $TriggerMetadata.ExpirationTime)
-Write-Host ("Queue item insertion time   :" + $TriggerMetadata.InsertionTime)
-Write-Host ("Queue item next visible time:" + $TriggerMetadata.NextVisibleTime)
-Write-Host ("$evtTime Queue Reported new item - BlobName:  $BlobName")
-
+Write-LogHeader -Verbose
 # Skip processing of non-relevant files that got written to the storage container
-if ($BlobName -notlike "*.log") {
-    Write-Verbose "Ignoring ConcurrencyStatus.json/non-Log file"
-    $skipfile = 1;
+if ($BlobName -notlike "*.log" -or $BlobName -eq 'concurrency.json' -or $BlobName -eq 'last') {
+    Write-Verbose -Message ("Ignoring ConcurrencyStatus.json, last, or non-Log file" + $BlobName)
     $skipNonLog = 1;
 }
-
-# LogFile Collection and check/skip empty
+# LogFile get/read (check/skip empty)
 if ($skipNonLog -ne 1){
     try {
-        Write-Output "Attempting to download blob content..."
+        Write-Host "Attempting to download blob content..."
         Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force |out-null
-        Write-Output "Blob content downloaded to $logPath"
+        Write-Host "Blob content downloaded to $logPath"
     }
     catch {
-        Write-Output "Error downloading blob content: $_"
+        Write-Host "Error downloading blob content: $_"
     }
-    $logsFromFile = Get-Content -Path $logPath -Raw
+    if ($BlobName -like "*gzip") {
+        Expand-JsonGzip $logPath
+    }else{
+        $logsFromFile = Get-Content -Path $logPath -Raw
+    }
     if ($logsFromFile.length -eq 0 -or $null -eq $logsFromFile) {
-        Write-Verbose "Ignoring empty logfile";
+        Write-Verbose -Message ("Ignoring empty logfile" + $BlobName);
         $skipfile = 1;
     }
 }
-
+# Process json primitive
 if ($skipfile -ne 1 -and $skipNonLog -ne 1) {
     $encodedJson = [System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($logsFromFile))
-    $renamedJsonPrimative = Rename-JsonProperties -rawJson $encodedJson -verbose
+    $renamedJsonPrimative = Rename-JsonProperties -rawJson $encodedJson -Verbose
     # If log source does not contain table headers
     # $json = Convert-LogLineToJson($log)
     # Wrapper for write-omslogfile to chunk based on REST API limit spec. Max 30Mb, this cuts at 25.
-    $LAPostResult = Submit-ChunkLAdata -Verbose -Corejson $renamedJsonPrimative -CustomLogName $LATableName -verbose
+    $LAPostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName -Verbose
 }
-
+# Cleanup storage blob/queue & runtime
 if($LAPostResult -eq 200 -or $skipfile -eq 1) {
     Remove-Item $logPath
-    Write-Output ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
+    Write-Host ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
     # Connect to Storage Queue to remove message on successful log processing
-    $AzureQueue = Get-AzStorageQueue -Context $AzureStorage -Name $AzureQueueName -verbose
+    $AzureQueue = Get-AzStorageQueue -Context $AzureStorage -Name $AzureQueueName -Verbose
     $AzureQueue |Get-Member
-    Write-Output ("Dequeuing Trigger ID/popReceipt: '$QueueId :: $QueuePop' From CloudQueue '$AzureQueue'")
+    Write-Host ("Dequeuing Trigger ID/popReceipt: '$QueueId :: $QueuePop' From CloudQueue '$AzureQueue'")
     $CloudQueue = $AzureQueue.CloudQueue
     Write-Verbose -Message ("Cloud Queue Reference '$CloudQueue' CloudQueue URI '$'${CloudQueue.uri}")
     # Check if $CloudQueue is null
     if ($null -eq $CloudQueue) {
-        Write-Error "CloudQueue is null. Cannot delete message."
+        Write-Error -Message ("CloudQueue is null. Cannot delete message." + $CloudQueue)
     }
     else {
         # Check if $QueueID and $QueuePOP are null or empty
         if ([string]::IsNullOrEmpty($QueueID) -or [string]::IsNullOrEmpty($QueuePOP)) {
-            Write-Error "QueueID or QueuePOP is null or empty. Cannot delete message."
+            Write-Error -Message ("QueueID or QueuePOP is null or empty. Cannot delete message." + $QueueID + $QueuePOP)
         }
         else {
             # Try to delete the message
             try {
                 $CloudQueue.DeleteMessage($QueueID, $QueuePOP)
-                Write-Output "Message deleted successfully."
+                Write-Host "Message deleted successfully."
             }
             catch {
-                Write-Error "Failed to delete message: $_"
+                Write-Error -Message "Failed to delete message: $_"
             }
         }
     }
-    Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -verbose
+    Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Verbose
     [System.GC]::collect() #cleanup memory
 }
-
 Write-Host ("######################################################################################")
 Write-Host ("############################ END TRANSACTION #########################################")
 Write-Host ("################# $BlobName ################")
