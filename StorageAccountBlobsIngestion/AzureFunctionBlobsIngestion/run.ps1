@@ -21,7 +21,7 @@ $WorkspaceId = $env:WorkspaceId
 $Workspacekey = $env:LogAnalyticsWorkspaceKey
 $LATableName = $env:LATableName
 $LAURI = $env:LAURI
-$AzureQueueName = $env:StgQueueName
+# $AzureQueueName = $env:StgQueueName
 #####Build the JSON from queue and grab blob path vars
 # $StorageAccountName = $QueueArr.topic.split('/')[-1]
 # $ResourceGroup      = $QueueArr.topic.split('/')[4]
@@ -337,7 +337,23 @@ function Rename-JsonProperties {
     }
     # Convert the updated data back to JSON
     $updatedJson = $modJson | ConvertTo-Json -Depth 20
+    Write-Output ("Updated Json Props`n" + $updatedJson)
     return $updatedJson
+}
+function Confirm-Json {
+    param (
+        [string]$jsonString
+    )
+
+    try {
+        $null = $jsonString | ConvertFrom-Json
+        Write-Output "Valid JSON"
+        return $true
+    }
+    catch {
+        Write-Output "Invalid JSON: $_"
+        return $false
+    }
 }
 Function Write-LogHeader{
     Write-Host ("######################################################################################")
@@ -358,7 +374,8 @@ Function Write-LogHeader{
 ##### Execution
 Write-LogHeader -Verbose
 # Skip processing of non-relevant files that got written to the storage container
-if ($BlobName -notlike "*.log" -or $BlobName -eq 'concurrency.json' -or $BlobName -eq 'last') {
+if ($BlobName -notmatch "\.log$|\.gzip$") {
+    # -or $BlobName -eq 'concurrency.json' -or $BlobName -eq 'last') {
     Write-Verbose -Message ("Ignoring ConcurrencyStatus.json, last, or non-Log file" + $BlobName)
     $skipNonLog = 1;
 }
@@ -382,45 +399,24 @@ if ($skipNonLog -ne 1){
         $skipfile = 1;
     }
 }
-# Process json primitive
+# Process/Submit json primitive
 if ($skipfile -ne 1 -and $skipNonLog -ne 1) {
     $encodedJson = [System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($logsFromFile))
-    $renamedJsonPrimative = Rename-JsonProperties -rawJson $encodedJson -Verbose
-    # If log source does not contain table headers
-    # $json = Convert-LogLineToJson($log)
-    # Wrapper for write-omslogfile to chunk based on REST API limit spec. Max 30Mb, this cuts at 25.
-    $LAPostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName -Verbose
+    $confirmedJson = Confirm-Json $encodedJson
+    if (!$confirmedJson){$skipfile = 1}else {
+        $renamedJsonPrimative = Rename-JsonProperties -rawJson $encodedJson -Verbose
+        # If log source does not contain table headers
+        # $json = Convert-LogLineToJson($log)
+        # Wrapper for write-omslogfile to chunk based on REST API limit spec. Max 30Mb, this cuts at 25.
+        $LAPostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName -Verbose
+    }
 }
 # Cleanup storage blob/queue & runtime
 if($LAPostResult -eq 200 -or $skipfile -eq 1) {
-    Remove-Item $logPath
     Write-Host ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
-    # Connect to Storage Queue to remove message on successful log processing
-    $AzureQueue = Get-AzStorageQueue -Context $AzureStorage -Name $AzureQueueName -Verbose
-    $AzureQueue |Get-Member
-    Write-Host ("Dequeuing Trigger ID/popReceipt: '$QueueId :: $QueuePop' From CloudQueue '$AzureQueue'")
-    $CloudQueue = $AzureQueue.CloudQueue
-    Write-Verbose -Message ("Cloud Queue Reference '$CloudQueue' CloudQueue URI '$'${CloudQueue.uri}")
-    # Check if $CloudQueue is null
-    if ($null -eq $CloudQueue) {
-        Write-Error -Message ("CloudQueue is null. Cannot delete message." + $CloudQueue)
-    }
-    else {
-        # Check if $QueueID and $QueuePOP are null or empty
-        if ([string]::IsNullOrEmpty($QueueID) -or [string]::IsNullOrEmpty($QueuePOP)) {
-            Write-Error -Message ("QueueID or QueuePOP is null or empty. Cannot delete message." + $QueueID + $QueuePOP)
-        }
-        else {
-            # Try to delete the message
-            try {
-                $CloudQueue.DeleteMessage($QueueID, $QueuePOP)
-                Write-Host "Message deleted successfully."
-            }
-            catch {
-                Write-Error -Message "Failed to delete message: $_"
-            }
-        }
-    }
+    Remove-Item $logPath
+    $queue = Get-AzStorageQueue -Context $AzureStorage -Name $queueName
+    Remove-AzStorageQueueMessage -Queue $queue -MessageId $QueueID -PopReceipt $QueuePOP
     Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Verbose
     [System.GC]::collect() #cleanup memory
 }
