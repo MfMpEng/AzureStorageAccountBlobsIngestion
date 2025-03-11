@@ -17,26 +17,26 @@ param( [object]$QueueItem, [object]$TriggerMetadata )
 # Write out the queue message and metadata to the information log.
 #####Environment Variables
 $AzureWebJobsStorage = $env:AzureWebJobsStorage
-$AzureQueueName = $env:StgQueueName
 $WorkspaceId = $env:WorkspaceId
 $Workspacekey = $env:LogAnalyticsWorkspaceKey
 $LATableName = $env:LATableName
 $LAURI = $env:LAURI
+$AzureQueueName = $env:StgQueueName
+#####Build the JSON from queue and grab blob path vars
+# $StorageAccountName = $QueueArr.topic.split('/')[-1]
+# $ResourceGroup      = $QueueArr.topic.split('/')[4]
 $QueueID = $TriggerMetadata.Id
 $QueuePOP = $TriggerMetadata.PopReceipt
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
-#####Build the JSON from queue and grab blob path vars
 $QueueMsg = ConvertTo-Json $QueueItem -Depth 20
 $QueueArr = @(ConvertFrom-Json $QueueMsg);
-$StorageAccountName = $QueueArr.topic.split('/')[-1]
 $ContainerName = $QueueArr.subject.split('/')[4]
-$BlobName = $QueueArr.subject.split('/')[-1]
 $BlobPath = $QueueArr.subject.split('/')[6..($QueueArr.subject.split('/').Length - 1)] -join '/'
 $evtTime = $QueueArr.eventTime
+$BlobName = $QueueArr.subject.split('/')[-1]
 $logPath = [System.IO.Path]::Combine($env:TEMP, $BlobName)
-
-# $BlobURL            = $QueueArr.data.url.tostring()
-# $ResourceGroup      = $QueueArr.topic.split('/')[4]
+$skipNonLog = $false;
+$skipfile = $false;
 #check that fn host env vars' workspace ID is valid and that we're sending to LA HTTP REST
 if($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-Z\.]+)$')
 {
@@ -320,19 +320,19 @@ Write-Host ("###################################################################
 Write-Host ("######################### BEGIN NEW TRANSACTION ######################################")
 Write-Host ("################# $BlobName ################")
 Write-Host ("######################################################################################")
+Write-Host ("Dequeue count               :" + $TriggerMetadata.DequeueCount)
 Write-Host ("PowerShell queue trigger function processed work item:" + $QueueItem)
+Write-Host ("Log Analytics URI           :" + $LAURI)
+Write-Host ("Queue Message ID            :" + $QueueId)
+Write-Host ("Queue Message Pop receipt   :" + $QueuePOP)
 Write-Host ("Current Directory           :" + $(Get-Location))
 Write-Host ("Queue item expiration time  :" + $TriggerMetadata.ExpirationTime)
 Write-Host ("Queue item insertion time   :" + $TriggerMetadata.InsertionTime)
 Write-Host ("Queue item next visible time:" + $TriggerMetadata.NextVisibleTime)
-Write-Host ("Queue Message ID            :" + $QueueId)
-Write-Host ("Queue Message Pop receipt   :" + $QueuePOP)
-Write-Host ("Dequeue count               :" + $TriggerMetadata.DequeueCount)
-Write-Host ("Log Analytics URI           :" + $LAURI)
-Write-Host ("$evtTime Queue Reported new item`nStorage Account Name     Container Name     BlobName`n$StorageAccountName  \  $ContainerName  \  $BlobName")
+Write-Host ("$evtTime Queue Reported new item - BlobName:  $BlobName")
 
 # Skip processing of non-relevant files that got written to the storage container
-if ($BlobPath -notlike "*.log") {
+if ($BlobName -notlike "*.log") {
     Write-Verbose "Ignoring ConcurrencyStatus.json/non-Log file"
     $skipfile = 1;
     $skipNonLog = 1;
