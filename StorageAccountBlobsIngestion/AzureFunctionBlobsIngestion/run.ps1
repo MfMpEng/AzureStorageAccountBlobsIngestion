@@ -369,19 +369,30 @@ if($LAPostResult -eq 200 -or $skipfile -eq 1) {
     Write-Output ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
     # Connect to Storage Queue to remove message on successful log processing
     $AzureQueue = Get-AzStorageQueue -Context $AzureStorage -Name $AzureQueueName -verbose
+    $AzureQueue |Get-Member
     Write-Output ("Dequeuing Trigger ID/popReceipt: '$QueueId :: $QueuePop' From CloudQueue '$AzureQueue'")
     $CloudQueue = $AzureQueue.CloudQueue
     Write-Verbose -Message ("Cloud Queue Reference '$CloudQueue' CloudQueue URI '$'${CloudQueue.uri}")
-    # if ($null -ne $CloudQueue -and $null -ne $QueueId -and $null -ne $QueuePOP) {
-        # try {
-            $CloudQueue.DeleteMessage($QueueID, $QueuePOP)
-        # }
-        # catch {
-            # Write-Warning -Message "Unable to DeQueue Item from: Queue='$CloudQueue' TriggerMetadata ID : '$queueid' QPOP: '$queuepop'"
-        # }
-    # } else {
-        # Write-Warning -Message "Unable to DeQueue Item from: Queue='$CloudQueue' TriggerMetadata ID : '$queueid' QPOP: '$queuepop'"
-    # }
+    # Check if $CloudQueue is null
+    if ($null -eq $CloudQueue) {
+        Write-Error "CloudQueue is null. Cannot delete message."
+    }
+    else {
+        # Check if $QueueID and $QueuePOP are null or empty
+        if ([string]::IsNullOrEmpty($QueueID) -or [string]::IsNullOrEmpty($QueuePOP)) {
+            Write-Error "QueueID or QueuePOP is null or empty. Cannot delete message."
+        }
+        else {
+            # Try to delete the message
+            try {
+                $CloudQueue.DeleteMessage($QueueID, $QueuePOP)
+                Write-Output "Message deleted successfully."
+            }
+            catch {
+                Write-Error "Failed to delete message: $_"
+            }
+        }
+    }
     Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -verbose
     [System.GC]::collect() #cleanup memory
 }
