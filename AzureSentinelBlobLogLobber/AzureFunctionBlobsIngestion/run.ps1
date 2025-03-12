@@ -82,16 +82,6 @@ function Remove-AzStorageQueueMessage {
         [string]$popReceipt,
         [string]$connectionString
     )
-    # Extract the storage account name and key from the connection string
-    $connectionStringParts = $connectionString -split ";"
-    # $storageAccountName = ($connectionStringParts | Where-Object { $_ -like "AccountName*" }) -split "=" | Select-Object -Last 1
-    $storageAccountKey = ($connectionStringParts | Where-Object { $_ -like "AccountKey*" }) -split "=" | Select-Object -Last 1
-    #$stringToHash = "DELETE`n`n`n`n`n`n`n`n`n`n`n`n`n$rfc1123date`n/$storageAccountName$resource?popreceipt=$popReceipt"
-    $resource = "/$queueName/messages/$messageId"
-    $param = "?popreceipt=$popReceipt"
-    $uri = "https://$StorageAccountName.queue.core.windows.net" + $resource + $param
-    # call the wrapper for Build-Headers
-    $resp = Submit-StgAcctDelReq -StgAcctName $StorageAccountName -queueName $queueName -SharedKey $storageAccountKey -Body $resource+$param -uri $uri
     #supporting function
     Function Submit-StgAcctDelReq ($StgAcctName, $queueName, $SharedKey, $Body, $uri) {
         # struct headers and RPC
@@ -110,6 +100,16 @@ function Remove-AzStorageQueueMessage {
     }
     return $resp
 }
+    # Extract the storage account name and key from the connection string
+    $connectionStringParts = $connectionString -split ";"
+    # $storageAccountName = ($connectionStringParts | Where-Object { $_ -like "AccountName*" }) -split "=" | Select-Object -Last 1
+    $storageAccountKey = ($connectionStringParts | Where-Object { $_ -like "AccountKey*" }) -split "=" | Select-Object -Last 1
+    #$stringToHash = "DELETE`n`n`n`n`n`n`n`n`n`n`n`n`n$rfc1123date`n/$storageAccountName$resource?popreceipt=$popReceipt"
+    $resource = "/$queueName/messages/$messageId"
+    $param = "?popreceipt=$popReceipt"
+    $uri = "https://$StorageAccountName.queue.core.windows.net" + $resource + $param
+    # call the wrapper for Build-Headers
+    $resp = Submit-StgAcctDelReq -StgAcctName $StorageAccountName -queueName $queueName -SharedKey $storageAccountKey -Body $resource+$param -uri $uri
 # Output construct
 function Build-signature ($CustomerID, $SharedKey, $Date, $ContentLength, $method, $ContentType, $resource) {
     # Function creates the Authorization signature header value
