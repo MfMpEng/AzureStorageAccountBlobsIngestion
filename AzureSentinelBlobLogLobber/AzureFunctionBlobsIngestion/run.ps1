@@ -111,7 +111,7 @@ function Remove-AzStorageQueueMessage {
     $storageAccountKey = ($connectionStringParts | Where-Object { $_ -like "AccountKey*" }) -split "=" | Select-Object -Last 1
     $rfc1123date = (Get-Date).ToString('R')
     $resource = "/$queueName/messages/$messageId"
-    $uri = "https://$StgAcctName.queue.core.windows.net" + $resource + "?popreceipt=$popReceipt"
+    $uri = "https://$StorageAccountName.queue.core.windows.net" + $resource + "?popreceipt=$popReceipt"
     # Create the string to sign
     $stringToHash = "DELETE`n`n`n`n`n`n`n`n`n`n`n`n`n$rfc1123date`n/$storageAccountName$resource?popreceipt=$popReceipt"
     # call the wrapper for Build-Headers
