@@ -74,6 +74,7 @@ Function Write-LogFooter() {
 # Output cleanup
 function Remove-AzStorageQueueMessage {
     # extract SA key and struct body
+    #Remove-AzStorageQueueMessage -StorageAccountName $StorageAccountName -queueName $StgQueueName -messageId $QueueID -popReceipt $QueuePOP -connectionString $AzureWebJobsStorage
     param (
         [string]$StorageAccountName,
         [string]$queueName,
@@ -89,14 +90,7 @@ function Remove-AzStorageQueueMessage {
         # $ContentType = 'application/json'
         $rfc1123date = (Get-Date).ToString('R')
         $ContentLength = $Body.Length
-        $signature = Build-Signature `
-            customerId $StgAcctName `
-            sharedKey $SharedKey `
-            date $rfc1123date `
-            contentLength $ContentLength `
-            method $method `
-            # contentType $ContentType `
-            resource $resource
+        $signature = Build-Signature -CustomerID $StgAcctName -SharedKey $SharedKey -Date $rfc1123date -ContentLength $ContentLength -method $method -resource $resource # -ContentType $ContentType
         $headers = @{
             "Authorization" = $signature;
             "x-ms-date"     = $rfc1123date;
@@ -111,9 +105,8 @@ function Remove-AzStorageQueueMessage {
     $storageAccountKey = ($connectionStringParts | Where-Object { $_ -like "AccountKey*" }) -split "=" | Select-Object -Last 1
     $rfc1123date = (Get-Date).ToString('R')
     $resource = "/$queueName/messages/$messageId"
-    $uri = "https://$StorageAccountName.queue.core.windows.net" + $resource + "?popreceipt=$popReceipt"
-    # Create the string to sign
     $stringToHash = "DELETE`n`n`n`n`n`n`n`n`n`n`n`n`n$rfc1123date`n/$storageAccountName$resource?popreceipt=$popReceipt"
+    $uri = "https://$StorageAccountName.queue.core.windows.net" + $resource + "?popreceipt=$popReceipt"
     # call the wrapper for Build-Headers
     $resp = Submit-StgAcctDelReq -StgAcctName $StorageAccountName -queueName $queueName -SharedKey $storageAccountKey -Body $stringToHash -uri $uri -resource $resource
     return $resp
