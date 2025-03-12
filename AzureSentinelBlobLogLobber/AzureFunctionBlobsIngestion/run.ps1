@@ -402,38 +402,29 @@ Function Expand-JsonGzip([string]$logpath) {
     $jsonStream.Close()
     $gzipStream.Close()
     # Read the JSON content from the decompressed .json file
-    $jsonContent = Get-Content -Path $jsonFilePath -Raw #|ConvertTo-Json -depth 4
+    $jsonContent = Get-Content -Path $jsonFilePath -Raw
+    $encodedJson = [System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($jsonContent))
     # Remove the decompressed .json file
     Remove-Item -Path $jsonFilePath
     # Output the JSON content
-    return $jsonContent
-}
-# input validate
-Function Confirm-ValidJson ([string]$jsonString) {
-    try {
-        $null = $jsonString | ConvertFrom-Json
-        return $true
-    }
-    catch {
-        return $false
-    }
+    return $encodedJson
 }
 # input sanitize
 Function Format-DirtyJson ([string]$jsonString) {
-    $jsonString = $jsonString -replace '["/&<>]', {
+    $jsonString = $jsonString -replace '[/&<>]', {
         switch ($args) {
-            '"' { '\"' }
+            "/" { "&#x2F;" }
             "&" { "&amp;" }
             "<" { "&lt;" }
             ">" { "&gt;" }
-            "/" { "&#x2F;" }
+            #'"' { '\"' }
         }
     }
-    $jsonString = $jsonString -replace "[']", {
-        switch ($args) {
-            "'" { "&#x27;" }
-        }
-    }
+    # $jsonString = $jsonString -replace "[']", {
+        # switch ($args) {
+            # "'" { "&#x27;" }
+        # }
+    # }
     return $jsonString
 }
 ##### Execution
@@ -456,29 +447,30 @@ if ($BlobName -notmatch "\.log$|\.gzip$") {$skipfile = 1}else{
 # LogFile read/validate/processing
 if ($skipNonLog -eq 1 -or $skipfile -eq 1){<#NOOP#>}else{
     # LogFile read (switch for gzip/plaintext json)
-    if ($BlobName -like "*gzip") {Expand-JsonGzip $logPath -Verbose;}else{$logsFromFile = Get-Content -Path $logPath -Raw|ConvertTo-Json -depth 4}
+    if ($BlobName -like "*gzip") {
+        $logsFromFile = Expand-JsonGzip $logPath -Verbose;
+    } else {
+        $logsFromFile = Get-Content -Path $logPath -Raw
+        $logsFromFile = [System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($logsFromFile))
+    }
+    $validJson = $logsFromFile | ConvertFrom-Json
     # Validate/Process/Submit json primitive
-    if ($logsFromFile.length -eq 0 -or $null -eq $logsFromFile) {$skipfile =1}else{
-        $encodedJson = [System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($logsFromFile)) #|ConvertTo-Json -depth 4
-        #Write-Output "UTF8 Json From File`n$encodedJson"
-        $CleanJson = Format-DirtyJson $encodedJson -Verbose;
-        Write-Host "Formatted Json`n$CleanJson"
-        $confirmedJson = Confirm-ValidJson $CleanJson;
-        if (!$confirmedJson){$skipfile = 1}else{
-            $renamedJsonPrimative = Rename-JsonProperties -rawJson $encodedJson -Verbose
-            Write-Host ("Updated Json Props to be dispatched`n" + $renamedJsonPrimative)
-            # If log source does not contain table headers
-            # $json = Convert-LogLineToJson($log)
-            $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName -Verbose
-            Write-Host "Post Result: $LApostResult"
-        }
+    if ($null -eq $logsFromFile -or $logsFromFile.length -eq 0 -or !$validJson) { $skipfile = 1; Write-Error "Log contents not valid json" }else {
+        # Write-Output "UTF8 Json From File`n$logsFromFile"
+        $renamedJsonPrimative = Rename-JsonProperties -rawJson $logsFromFile -Verbose
+        $cleanedUnsafeJson = Format-DirtyJson $renamedJsonPrimative
+        Write-Host ("Updated Json Props to be dispatched`n" + $cleanedUnsafeJson)
+        # For use when log source only has prop values, no names
+        # $json = Convert-LogLineToJson($log)
+        $LApostResult = Submit-ChunkLAdata -Corejson $cleanedUnsafeJson -CustomLogName $LATableName -Verbose
+        Write-Host "Post Result: $LApostResult"
     }
 }
 # Cleanup storage blob/queue
 if($LApostResult -eq 200 -or $skipfile -eq 1) {
-    Write-Host ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
     # Skip deletion of empty/irrelevant blobs
     if (!$skipfile -and !$skipNonLog) {
+        Write-Host ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
         Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Verbose
         Remove-Item $logPath
     }
