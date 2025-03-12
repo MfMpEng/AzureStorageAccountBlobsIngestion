@@ -48,10 +48,11 @@ $skipNonLog = $false;
 $skipfile = $false;
 # useful if log source does not provide explicit json, only a csv of property values to reconstruct
 # Function Convert-LogLineToJson([String] $logLine) {
-#     .LINK
-#        https://github.com/Azure/azure-docs-powershell-samples/blob/master/storage/post-storage-logs-to-log-analytics/PostStorageLogs2LogAnalytics.ps1#L3
-#     #supporting Functions
-#
+<#
+    .LINK
+        https://github.com/Azure/azure-docs-powershell-samples/blob/master/storage/post-storage-logs-to-log-analytics/PostStorageLogs2LogAnalytics.ps1#L3
+    supporting Functions
+#>
 #     Function Convert-SemicolonToURLEncoding([String] $InputText) {
 #         $ReturnText = ""
 #         $chars = $InputText.ToCharArray()
