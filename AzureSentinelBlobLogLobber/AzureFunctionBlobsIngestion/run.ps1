@@ -449,7 +449,7 @@ if ($BlobName -notmatch "\.log$|\.gzip$") {$skipfile = 1}else{
         Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force |out-null
         Write-Host "Blob content downloaded to $logPath"
     } catch {
-        Write-Host "Error downloading blob content: $_"
+        Write-Error "Error downloading blob content: $_"
         $skipNonLog = 1
     }
 }
@@ -462,25 +462,26 @@ if ($skipNonLog -eq 1 -or $skipfile -eq 1){<#NOOP#>}else{
         $encodedJson = [System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($logsFromFile)) #|ConvertTo-Json -depth 4
         #Write-Output "UTF8 Json From File`n$encodedJson"
         $CleanJson = Format-DirtyJson $encodedJson -Verbose;
-        Write-Verbose "Formatted Json`n$CleanJson"
+        Write-Host "Formatted Json`n$CleanJson"
         $confirmedJson = Confirm-ValidJson $CleanJson;
         if (!$confirmedJson){$skipfile = 1}else{
             $renamedJsonPrimative = Rename-JsonProperties -rawJson $encodedJson -Verbose
-            Write-Verbose ("Updated Json Props to be dispatched`n" + $renamedJsonPrimative)
+            Write-Host ("Updated Json Props to be dispatched`n" + $renamedJsonPrimative)
             # If log source does not contain table headers
             # $json = Convert-LogLineToJson($log)
             $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName -Verbose
-            Write-Verbose "Post Result: $LApostResult"
+            Write-Host "Post Result: $LApostResult"
         }
     }
 }
 # Cleanup storage blob/queue
 if($LApostResult -eq 200 -or $skipfile -eq 1) {
     Write-Host ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
-    # $queue = Get-AzStorageQueue -Context $AzureStorage -Name $queueName
-    Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Verbose
-    if (!$skipfile){Remove-Item $logPath}
-    # Remove-AzStorageQueueMessage -Queue $queue -MessageId $QueueID -PopReceipt $QueuePOP -Verbose
+    # Skip deletion of empty/irrelevant blobs
+    if (!$skipfile -and !$skipNonLog) {
+        Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Verbose
+        Remove-Item $logPath
+    }
     Remove-AzStorageQueueMessage -StorageAccountName $StorageAccountName -queueName $StgQueueName -messageId $QueueID -popReceipt $QueuePOP -connectionString $AzureWebJobsStorage
 }
 Write-LogFooter
