@@ -463,8 +463,7 @@ if ($BlobName -notmatch "\.log$|\.gzip$") {$skipfile = 1}else{
     try {
         Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force |out-null
         Write-Host "Blob content downloaded to $logPath"
-    }
-    catch {
+    } catch {
         Write-Host "Error downloading blob content: $_"
         $skipNonLog = 1
     }
