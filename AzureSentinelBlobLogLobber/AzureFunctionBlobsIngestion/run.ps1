@@ -119,6 +119,24 @@ function Remove-AzStorageQueueMessage {
     return $resp
 }
 # Output construct
+function Build-signature ($CustomerID, $SharedKey, $Date, $ContentLength, $method, $ContentType, $resource) {
+    # Function creates the Authorization signature header value
+    $xheaders = 'x-ms-date:' + $Date
+    $stringToHash = $method + "`n" + $contentLength + "`n" + $contentType + "`n" + $xHeaders + "`n" + $resource
+    $bytesToHash = [text.Encoding]::UTF8.GetBytes($stringToHash)
+    $keyBytes = [Convert]::FromBase64String($SharedKey)
+    $sha256 = New-Object System.Security.Cryptography.HMACSHA256
+    $sha256.key = $keyBytes
+    $calculateHash = $sha256.ComputeHash($bytesToHash)
+    $encodeHash = [convert]::ToBase64String($calculateHash)
+    $authorization = 'SharedKey {0}:{1}' -f $CustomerID, $encodeHash
+    return $authorization
+    # $signature = [System.Security.Cryptography.HMACSHA256]::new([System.Text.Encoding]::UTF8.GetBytes($SharedKey))
+    # $bytesToHashconv = [System.Text.Encoding]::UTF8.GetBytes("$contentType`n$Data")
+    # $hashed = $signature.ComputeHash($bytesToHashconv)
+    # $encoded = [System.Convert]::ToBase64String($hashed)
+    # return $encoded
+}
 Function Write-OMSLogfile {
     <#
     .SYNOPSIS
@@ -159,24 +177,6 @@ Function Write-OMSLogfile {
         [string]$SharedKey
     )
     # Supporting Functions
-    # Function creates the Authorization signature header value
-    function Build-signature ($CustomerID, $SharedKey, $Date, $ContentLength, $method, $ContentType, $resource) {
-        $xheaders = 'x-ms-date:' + $Date
-        $stringToHash = $method + "`n" + $contentLength + "`n" + $contentType + "`n" + $xHeaders + "`n" + $resource
-        $bytesToHash = [text.Encoding]::UTF8.GetBytes($stringToHash)
-        $keyBytes = [Convert]::FromBase64String($SharedKey)
-        $sha256 = New-Object System.Security.Cryptography.HMACSHA256
-        $sha256.key = $keyBytes
-        $calculateHash = $sha256.ComputeHash($bytesToHash)
-        $encodeHash = [convert]::ToBase64String($calculateHash)
-        $authorization = 'SharedKey {0}:{1}' -f $CustomerID, $encodeHash
-        return $authorization
-        # $signature = [System.Security.Cryptography.HMACSHA256]::new([System.Text.Encoding]::UTF8.GetBytes($SharedKey))
-        # $bytesToHashconv = [System.Text.Encoding]::UTF8.GetBytes("$contentType`n$Data")
-        # $hashed = $signature.ComputeHash($bytesToHashconv)
-        # $encoded = [System.Convert]::ToBase64String($hashed)
-        # return $encoded
-    }
     # Function generates HTTP header/body and POST it
     Function Submit-OMSPostReq ($CustomerID, $SharedKey, $Body, $Type) {
         [cmdletbinding()]
