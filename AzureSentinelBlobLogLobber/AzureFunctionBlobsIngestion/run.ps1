@@ -82,33 +82,32 @@ function Remove-AzStorageQueueMessage {
         [string]$popReceipt,
         [string]$connectionString
     )
-    #supporting function
-    Function Submit-StgAcctDelReq ($StgAcctName, $queueName, $SharedKey, $Body, $uri, $resource) {
-        # struct headers and RPC
-        [cmdletbinding()]
-        $method = "DELETE"
-        # $ContentType = 'application/json'
-        $rfc1123date = (Get-Date).ToString('R')
-        $ContentLength = $Body.Length
-        $signature = Build-Signature -CustomerID $StgAcctName -SharedKey $SharedKey -Date $rfc1123date -ContentLength $ContentLength -method $method -resource $resource # -ContentType $ContentType
-        $headers = @{
-            "Authorization" = $signature;
-            "x-ms-date"     = $rfc1123date;
-        }
-        $response = Invoke-WebRequest -Uri $uri -Method $method -Headers $headers -Body $body <#-ContentType $ContentType#> -UseBasicParsing  -Verbose
-        # Write-Verbose -Message ('Post Function Return Code ' + $response.statuscode)
-        return $response.statuscode
-    }
     # Extract the storage account name and key from the connection string
     $connectionStringParts = $connectionString -split ";"
     # $storageAccountName = ($connectionStringParts | Where-Object { $_ -like "AccountName*" }) -split "=" | Select-Object -Last 1
     $storageAccountKey = ($connectionStringParts | Where-Object { $_ -like "AccountKey*" }) -split "=" | Select-Object -Last 1
-    $rfc1123date = (Get-Date).ToString('R')
+    #$stringToHash = "DELETE`n`n`n`n`n`n`n`n`n`n`n`n`n$rfc1123date`n/$storageAccountName$resource?popreceipt=$popReceipt"
     $resource = "/$queueName/messages/$messageId"
-    $stringToHash = "DELETE`n`n`n`n`n`n`n`n`n`n`n`n`n$rfc1123date`n/$storageAccountName$resource?popreceipt=$popReceipt"
-    $uri = "https://$StorageAccountName.queue.core.windows.net" + $resource + "?popreceipt=$popReceipt"
+    $param = "?popreceipt=$popReceipt"
+    $uri = "https://$StorageAccountName.queue.core.windows.net" + $resource + $param
     # call the wrapper for Build-Headers
-    $resp = Submit-StgAcctDelReq -StgAcctName $StorageAccountName -queueName $queueName -SharedKey $storageAccountKey -Body $stringToHash -uri $uri -resource $resource
+    $resp = Submit-StgAcctDelReq -StgAcctName $StorageAccountName -queueName $queueName -SharedKey $storageAccountKey -Body $resource+$param -uri $uri
+    #supporting function
+    Function Submit-StgAcctDelReq ($StgAcctName, $queueName, $SharedKey, $Body, $uri) {
+        # struct headers and RPC
+        $method = "DELETE"
+        $ContentLength = $Body.Length
+        $ContentType = 'text/html; charset=utf-8'
+        $rfc1123date = (Get-Date).ToString('R')
+        $signature = Build-Signature -CustomerID $StgAcctName -SharedKey $SharedKey -Date $rfc1123date -ContentLength $ContentLength -method $method -ContentType $ContentType -resource $resource
+        $headers = @{
+            "Authorization" = $signature;
+            "x-ms-date"     = $rfc1123date;
+        }
+        $response = Invoke-RestMethod -Uri $uri -Method $method -Headers $headers -Body $Body -ContentType $ContentType -UseBasicParsing -Verbose
+        # Write-Verbose -Message ('Post Function Return Code ' + $response.statuscode)
+        return $response.statuscode
+    }
     return $resp
 }
 # Output construct
@@ -179,14 +178,7 @@ Function Write-OMSLogfile {
         $rfc1123date = (Get-Date).ToString('R')
         $Iso8601ZventTime = $datetime.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
         $ContentLength = $Body.Length
-        $signature = Build-Signature `
-            -customerId $CustomerID `
-            -sharedKey $SharedKey `
-            -date $rfc1123date `
-            -contentLength $ContentLength `
-            -method $method `
-            -contentType $ContentType `
-            -resource $resource
+        $signature = Build-Signature -CustomerID $CustomerID -SharedKey $SharedKey -Date $rfc1123date -ContentLength $ContentLength -method $method -ContentType $ContentType -resource $resource
         $uri = $LAURI.Trim() + $resource + "?api-version=2016-04-01"
         $headers = @{
             "Authorization"        = $signature;
@@ -487,7 +479,7 @@ if($LApostResult -eq 200 -or $skipfile -eq 1) {
     Write-Host ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
     # $queue = Get-AzStorageQueue -Context $AzureStorage -Name $queueName
     Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Verbose
-    Remove-Item $logPath
+    if (!$skipfile){Remove-Item $logPath}
     # Remove-AzStorageQueueMessage -Queue $queue -MessageId $QueueID -PopReceipt $QueuePOP -Verbose
     Remove-AzStorageQueueMessage -StorageAccountName $StorageAccountName -queueName $StgQueueName -messageId $QueueID -popReceipt $QueuePOP -connectionString $AzureWebJobsStorage
 }
