@@ -85,22 +85,21 @@ function Remove-AzStorageQueueMessage {
     # $storageAccountName = ($connectionStringParts | Where-Object { $_ -like "AccountName*" }) -split "=" | Select-Object -Last 1
     $storageAccountKey = ($connectionStringParts | Where-Object { $_ -like "AccountKey*" }) -split "=" | Select-Object -Last 1
     # Define the necessary variables
-    $date = (Get-Date).ToUniversalTime().ToString('R')
     # Create the string to sign
-    $stringToSign = "DELETE`n`n`n`n`n`n`n`n`n`n`n`n`n$date`n/$storageAccountName/$queueName/messages/$messageId?popreceipt=$popReceipt"
-    # Decode the storage account key
+    $stringToHash = "DELETE`n`n`n`n`n`n`n`n`n`n`n`n`n$date`n/$storageAccountName/$queueName/messages/$messageId?popreceipt=$popReceipt"
+    # $stringToHash = $method + "`n" + $contentLength + "`n" + $contentType + "`n" + $xHeaders + "`n" + $resource
+    $bytesToHash = [text.Encoding]::UTF8.GetBytes($stringToHash)
     $keyBytes = [Convert]::FromBase64String($storageAccountKey)
-    # Create the HMAC-SHA256 hash
-    $hmacsha256 = New-Object System.Security.Cryptography.HMACSHA256
-    $hmacsha256.Key = $keyBytes
-    $signatureBytes = $hmacsha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($stringToSign))
-    $signature = [Convert]::ToBase64String($signatureBytes)
-    # Construct the authorization header
-    $authHeader = "SharedKey ${storageAccountName}:${signature}"
+    $sha256 = New-Object System.Security.Cryptography.HMACSHA256
+    $sha256.key = $keyBytes
+    $calculateHash = $sha256.ComputeHash($bytesToHash)
+    $encodeHash = [convert]::ToBase64String($calculateHash)
+    $authorization = 'SharedKey {0}:{1}' -f $CustomerID, $encodeHash
+    $date = (Get-Date).ToUniversalTime().ToString('R')
     # Construct the URL
     $url = "https://$storageAccountName.queue.core.windows.net/$queueName/messages/$messageId?popreceipt=$popReceipt"
     # Send the DELETE request
-    Invoke-RestMethod -Uri $url -Method Delete -Headers @{Authorization = $authHeader; Date = $date }
+    Invoke-RestMethod -Uri $url -Method Delete -Headers @{Authorization = $authorization; Date = $date }
 }
 # Output construct
 Function Write-OMSLogfile {
@@ -455,7 +454,7 @@ if ($BlobName -notmatch "\.log$|\.gzip$") {$skipfile = 1}else{
     }
 }
 # LogFile read/validate/processing
-if ($skipNonLog -eq 1){<#NOOP#>}else{
+if ($skipNonLog -eq 1 -or $skipfile -eq 1){<#NOOP#>}else{
     # LogFile read (switch for gzip/plaintext json)
     if ($BlobName -like "*gzip") {Expand-JsonGzip $logPath -Verbose;}else{$logsFromFile = Get-Content -Path $logPath -Raw|ConvertTo-Json -depth 4}
     # Validate/Process/Submit json primitive
