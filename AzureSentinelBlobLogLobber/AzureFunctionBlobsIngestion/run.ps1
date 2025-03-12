@@ -29,10 +29,11 @@ $AzureWebJobsStorage = $env:AzureWebJobsStorage
 $WorkspaceId = $env:WorkspaceId
 $Workspacekey = $env:LogAnalyticsWorkspaceKey
 $LATableName = $env:LATableName
+$StgQueueName = $env:StgQueueName
 $LAURI = $env:LAURI
 ##### Init vars
-# $StorageAccountName = $QueueArr.topic.split('/')[-1]
 # $ResourceGroup      = $QueueArr.topic.split('/')[4]
+$StorageAccountName = $QueueArr.topic.split('/')[-1]
 $QueueID = $TriggerMetadata.Id
 $QueuePOP = $TriggerMetadata.PopReceipt
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
@@ -69,6 +70,37 @@ Function Write-LogFooter() {
     Write-Host ("############################ END TRANSACTION #########################################")
     Write-Host ("################# $BlobName ################")
     Write-Host ("######################################################################################")
+}
+# Output cleanup
+function Remove-AzStorageQueueMessage {
+    param (
+        [string]$StorageAccountName,
+        [string]$queueName,
+        [string]$messageId,
+        [string]$popReceipt,
+        [string]$connectionString
+    )
+    # Extract the storage account name and key from the connection string
+    $connectionStringParts = $connectionString -split ";"
+    # $storageAccountName = ($connectionStringParts | Where-Object { $_ -like "AccountName*" }) -split "=" | Select-Object -Last 1
+    $storageAccountKey = ($connectionStringParts | Where-Object { $_ -like "AccountKey*" }) -split "=" | Select-Object -Last 1
+    # Define the necessary variables
+    $date = (Get-Date).ToUniversalTime().ToString('R')
+    # Create the string to sign
+    $stringToSign = "DELETE`n`n`n`n`n`n`n`n`n`n`n`n`n$date`n/$storageAccountName/$queueName/messages/$messageId?popreceipt=$popReceipt"
+    # Decode the storage account key
+    $keyBytes = [Convert]::FromBase64String($storageAccountKey)
+    # Create the HMAC-SHA256 hash
+    $hmacsha256 = New-Object System.Security.Cryptography.HMACSHA256
+    $hmacsha256.Key = $keyBytes
+    $signatureBytes = $hmacsha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($stringToSign))
+    $signature = [Convert]::ToBase64String($signatureBytes)
+    # Construct the authorization header
+    $authHeader = "SharedKey ${storageAccountName}:${signature}"
+    # Construct the URL
+    $url = "https://$storageAccountName.queue.core.windows.net/$queueName/messages/$messageId?popreceipt=$popReceipt"
+    # Send the DELETE request
+    Invoke-RestMethod -Uri $url -Method Delete -Headers @{Authorization = $authHeader; Date = $date }
 }
 # Output construct
 Function Write-OMSLogfile {
@@ -135,7 +167,7 @@ Function Write-OMSLogfile {
         $method = "POST"
         $ContentType = 'application/json'
         $resource = '/api/logs'
-        $rfc1123date = (Get-Date).ToString('r')
+        $rfc1123date = (Get-Date).ToString('R')
         $Iso8601ZventTime = $datetime.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
         $ContentLength = $Body.Length
         $signature = Build-Signature `
@@ -403,6 +435,7 @@ Function Format-DirtyJson ([string]$jsonString) {
     }
     return $jsonString
 }
+
 ##### Execution
 Write-LogHeader
 #check that fn host env vars' workspace ID is valid and that we're sending to LA HTTP REST
@@ -445,10 +478,11 @@ if ($skipNonLog -eq 1){<#NOOP#>}else{
 # Cleanup storage blob/queue
 if($LApostResult -eq 200 -or $skipfile -eq 1) {
     Write-Host ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
-    $queue = Get-AzStorageQueue -Context $AzureStorage -Name $queueName
-    Remove-AzStorageQueueMessage -Queue $queue -MessageId $QueueID -PopReceipt $QueuePOP -Verbose
+    # $queue = Get-AzStorageQueue -Context $AzureStorage -Name $queueName
     Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Verbose
     Remove-Item $logPath
+    # Remove-AzStorageQueueMessage -Queue $queue -MessageId $QueueID -PopReceipt $QueuePOP -Verbose
+    Remove-AzStorageQueueMessage -StorageAccountName $StorageAccountName -queueName $StgQueueName -messageId $QueueID -popReceipt $QueuePOP -connectionString $AzureWebJobsStorage
 }
 Write-LogFooter
 # Cleanup env
