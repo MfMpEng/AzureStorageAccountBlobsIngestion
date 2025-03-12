@@ -1,30 +1,37 @@
 <#
-    Title:          Azure Sentinel Log Ingestion - Process Log Queue Messages
-    Language:       PowerShell
-    Version:        1.3.0
-    Author(s):      Sreedhar Ande, MF@CF
-    Last Modified:  2025-03-09
-    Comment:        Rebased Build
-    DESCRIPTION
-    This function monitors an Azure Storage queue for messages then retrieves the file and preps it for Ingestion processing.
-    CHANGE HISTORY
-    1.0.0 Inital release of code
-    1.3.0 Submits blob content not queue message
+    .DESCRIPTION
+        This function monitors an Azure Storage queue for messages, then retrieves the file and preps it for
+    .INPUTS
+        storage queue messages
+    .OUTPUTS
+        LA Workspace REST API JSON POST reqwuest
+    .LINK
+        https://learn.microsoft.com/en-us/rest/api/loganalytics/create-request
+    .NOTES
+        Title:          Azure Sentinel Blob Log Lobber - Process Json Blobs via Storage Queue Messages
+        Language:       PowerShell
+        Version:        1.5.0
+        Author(s):      MF@CF,Sreedhar Ande, Travis Roberts, kozhemyak
+        Last Modified:  2025-03-11
+        Comment:        Extensibility
+        CHANGE HISTORY
+        1.0.0 Inital release of code
+        1.3.0 Submits blob content not queue message
+        1.5.0 Handles gzip, optionally unstructured json, and sanitizes inputs
+
 #>
 # Input bindings are passed in via param block.
 param( [object]$QueueItem, [object]$TriggerMetadata )
-$QueueItem = [PSObject]::AsPSObject($QueueItem)
-$TriggerMetadata = [PSObject]::AsPSObject($TriggerMetadata)
 # $VerbosePreference = "Continue"
-# Write out the queue message and metadata to the information log.
-#####Environment Variables
+# $QueueItem = [PSObject]::AsPSObject($QueueItem)
+# $TriggerMetadata = [PSObject]::AsPSObject($TriggerMetadata)
+#####Env Vars
 $AzureWebJobsStorage = $env:AzureWebJobsStorage
 $WorkspaceId = $env:WorkspaceId
 $Workspacekey = $env:LogAnalyticsWorkspaceKey
 $LATableName = $env:LATableName
 $LAURI = $env:LAURI
-# $AzureQueueName = $env:StgQueueName
-#####Build the JSON from queue and grab blob path vars
+##### Init vars
 # $StorageAccountName = $QueueArr.topic.split('/')[-1]
 # $ResourceGroup      = $QueueArr.topic.split('/')[4]
 $QueueID = $TriggerMetadata.Id
@@ -39,14 +46,10 @@ $BlobName = $QueueArr.subject.split('/')[-1]
 $logPath = [System.IO.Path]::Combine($env:TEMP, $BlobName)
 $skipNonLog = $false;
 $skipfile = $false;
-#check that fn host env vars' workspace ID is valid and that we're sending to LA HTTP REST
-if($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-Z\.]+)$')
-{
-    Write-Error -Message ("Storage Account Blobs Ingestion: Invalid Log Analytics Uri." + $LAURI) -ErrorAction Stop
-	Exit
-}
 # useful if log source does not provide explicit json, only a csv of property values to reconstruct
 # Function Convert-LogLineToJson([String] $logLine) {
+#     .LINK
+#        https://github.com/Azure/azure-docs-powershell-samples/blob/master/storage/post-storage-logs-to-log-analytics/PostStorageLogs2LogAnalytics.ps1#L3
 #     #supporting Functions
 #
 #     Function Convert-SemicolonToURLEncoding([String] $InputText) {
@@ -132,7 +135,7 @@ Function Write-OMSLogfile {
         [parameter(Mandatory = $true, Position = 1)]
         [string]$type,
         [Parameter(Mandatory = $true, Position = 2)]
-        [psobject]$logdata,
+        [object]$logdata,
         [Parameter(Mandatory = $true, Position = 3)]
         [string]$CustomerID,
         [Parameter(Mandatory = $true, Position = 4)]
@@ -141,19 +144,25 @@ Function Write-OMSLogfile {
     # Supporting Functions
     # Function to create the auth signature
     function Build-signature ($CustomerID, $SharedKey, $Date, $ContentLength, $method, $ContentType, $resource) {
-        $xheaders = 'x-ms-date:' + $Date
-        $stringToHash = $method + "`n" + $contentLength + "`n" + $contentType + "`n" + $xHeaders + "`n" + $resource
-        $bytesToHash = [text.Encoding]::UTF8.GetBytes($stringToHash)
-        $keyBytes = [Convert]::FromBase64String($SharedKey)
-        $sha256 = New-Object System.Security.Cryptography.HMACSHA256
-        $sha256.key = $keyBytes
-        $calculateHash = $sha256.ComputeHash($bytesToHash)
-        $encodeHash = [convert]::ToBase64String($calculateHash)
-        $authorization = 'SharedKey {0}:{1}' -f $CustomerID, $encodeHash
-        return $authorization
+        # $xheaders = 'x-ms-date:' + $Date
+        # $stringToHash = $method + "`n" + $contentLength + "`n" + $contentType + "`n" + $xHeaders + "`n" + $resource
+        # $bytesToHash = [text.Encoding]::UTF8.GetBytes($stringToHash)
+        # $keyBytes = [Convert]::FromBase64String($SharedKey)
+        # $sha256 = New-Object System.Security.Cryptography.HMACSHA256
+        # $sha256.key = $keyBytes
+        # $calculateHash = $sha256.ComputeHash($bytesToHash)
+        # $encodeHash = [convert]::ToBase64String($calculateHash)
+        # $authorization = 'SharedKey {0}:{1}' -f $CustomerID, $encodeHash
+        # return $authorization
+        $signature = [System.Security.Cryptography.HMACSHA256]::new([System.Text.Encoding]::UTF8.GetBytes($SharedKey))
+        $bytesToHashconv = [System.Text.Encoding]::UTF8.GetBytes("$contentType`n$Data")
+        $hashed = $signature.ComputeHash($bytesToHashconv)
+        $encoded = [System.Convert]::ToBase64String($hashed)
+        return $encoded
     }
     # Function to create and post the request
     Function Submit-OMSPostReq ($CustomerID, $SharedKey, $Body, $Type) {
+        [cmdletbinding()]
         $method = "POST"
         $ContentType = 'application/json'
         $resource = '/api/logs'
@@ -180,7 +189,7 @@ Function Write-OMSLogfile {
         return $response.statuscode
     }
     #Build the JSON file
-    # $logMessage = ($logdata | ConvertTo-Json -Depth 20)
+    $logMessage = ($logdata | ConvertTo-Json -Depth 20)
     Write-Verbose -Message ("Log Message POST Body:`n" + $logMessage)
     #Submit the data
     $returnCode = Submit-OMSPostReq -CustomerID $CustomerID -SharedKey $SharedKey -Body $logdata -Type $type -Verbose
@@ -212,10 +221,7 @@ Function Submit-ChunkLAdata ($corejson, $customLogName) {
         Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
     }
 }
-function Expand-JsonGzip {
-    param (
-        [string]$logpath
-    )
+function Expand-JsonGzip([string]$logpath) {
     # Define the path to the decompressed .json file
     $jsonFilePath = [System.IO.Path]::ChangeExtension($logpath, ".json")
     # Open the .gzip file for reading
@@ -235,6 +241,7 @@ function Expand-JsonGzip {
     # Remove the decompressed .json file
     Remove-Item -Path $jsonFilePath
     # Output the JSON content
+    Write-Output "Gunzipped json:`n$jsonContent"
     return $jsonContent
 }
 function Rename-JsonProperties {
@@ -357,6 +364,7 @@ function Confirm-Json {
     }
 }
 Function Write-LogHeader{
+    # Write out the queue message and metadata to the information log.
     Write-Host ("######################################################################################")
     Write-Host ("######################### BEGIN NEW TRANSACTION ######################################")
     Write-Host ("################# $BlobName ################")
@@ -372,9 +380,20 @@ Function Write-LogHeader{
     Write-Host ("Queue item next visible time:" + $TriggerMetadata.NextVisibleTime)
     Write-Host ("$evtTime Queue Reported new item - BlobName:  $BlobName")
 }
+Function Write-LogFooter {
+    Write-Host ("######################################################################################")
+    Write-Host ("############################ END TRANSACTION #########################################")
+    Write-Host ("################# $BlobName ################")
+    Write-Host ("######################################################################################")
+}
 ##### Execution
-Write-LogHeader -Verbose
-# Skip processing of non-relevant files that got written to the storage container
+Write-LogHeader
+#check that fn host env vars' workspace ID is valid and that we're sending to LA HTTP REST
+if ($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-Z\.]+)$') {
+    Write-Error -Message ("Storage Account Blobs Ingestion: Invalid Log Analytics Uri." + $LAURI) -ErrorAction Stop
+    Exit
+}
+# Skip proc of irrelevant writes to container
 if ($BlobName -notmatch "\.log$|\.gzip$") {
     # -or $BlobName -eq 'concurrency.json' -or $BlobName -eq 'last') {
     Write-Verbose -Message ("Ignoring ConcurrencyStatus.json, last, or non-Log file" + $BlobName)
@@ -382,6 +401,7 @@ if ($BlobName -notmatch "\.log$|\.gzip$") {
 }
 # LogFile get/read (check/skip empty)
 if ($skipNonLog -ne 1){
+    # It's labelled log, grab it
     try {
         Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force |out-null
         Write-Host "Blob content downloaded to $logPath"
@@ -389,11 +409,13 @@ if ($skipNonLog -ne 1){
     catch {
         Write-Host "Error downloading blob content: $_"
     }
+    # Switch for gzip/plaintext json
     if ($BlobName -like "*gzip") {
-        Expand-JsonGzip $logPath
+        Expand-JsonGzip $logPath -Verbose
     }else{
         $logsFromFile = Get-Content -Path $logPath -Raw|ConvertTo-Json -Depth 20
     }
+    # Input sanitation: Check for empty output
     if ($logsFromFile.length -eq 0 -or $null -eq $logsFromFile) {
         Write-Verbose -Message ("Ignoring empty logfile" + $BlobName);
         $skipfile = 1;
@@ -401,10 +423,10 @@ if ($skipNonLog -ne 1){
 }
 # Process/Submit json primitive
 if ($skipfile -ne 1 -and $skipNonLog -ne 1) {
-    $encodedJson = [System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($logsFromFile))
+    $encodedJson = [System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($logsFromFile))|ConvertTo-Json -Depth 20
     Write-Output "UTF8 Json From File`n$encodedJson"
-    $confirmedJson = Confirm-Json $encodedJson
-    if (!$confirmedJson){$skipfile = 1}else {
+    $confirmedJson = Confirm-Json $encodedJson -Verbose
+    if (!$confirmedJson){$skipfile = 1}else{
         $renamedJsonPrimative = Rename-JsonProperties -rawJson $encodedJson -Verbose
         # If log source does not contain table headers
         # $json = Convert-LogLineToJson($log)
@@ -421,9 +443,6 @@ if($LAPostResult -eq 200 -or $skipfile -eq 1) {
     Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Verbose
     [System.GC]::collect() #cleanup memory
 }
-Write-Host ("######################################################################################")
-Write-Host ("############################ END TRANSACTION #########################################")
-Write-Host ("################# $BlobName ################")
-Write-Host ("######################################################################################")
+Write-LogFooter
 [System.GC]::GetTotalMemory($true) | out-null #Force full garbage collection - Powershell does not clean itself up properly in some situations
 #end of Script

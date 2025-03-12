@@ -16,7 +16,7 @@ This custom Azure Sentinel Data connector ingests Azure Storage Account Blobs to
 1. Write a Log Analytics Workspace table into the target Sentinel that fits the schema of the logs being ingested. If either schema or sample log json available, can quick import as custom table in LA Workspace.
 
 2. Click on Deploy to Azure (For both Commercial & Azure GOV)
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMfMpEng%2FAzureStorageAccountBlobsIngestion%2Frefs%2Fheads%2Fmain%2Fazuredeploy.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMfMpEng%2FAzureSentinelBlobLogLobber%2Frefs%2Fheads%2Fmain%2Fazuredeploy.json)
 
 3. Select the preferred **Subscription**, **Resource Group** and **Location**
    **Note**
@@ -35,4 +35,4 @@ This custom Azure Sentinel Data connector ingests Azure Storage Account Blobs to
 ## Details
 1. This ARM template creates an Azure Storage Account Blob Container called ```<<functionAppName>>-2Blob```. Send source logs here.
 2. Powershell Function App orchestrates ingestion based on Event Grid Subscription Topic watching SA blob writes logged in SA Queue.
-3. Fn App triggers log ingestion procedure on Blobs; upon successful LA Workspace write then deletes the blob.
+3. Fn App triggers log ingestion procedure on Blobs; upon successful LA Workspace REST response, deletes the blob & queueMsg
