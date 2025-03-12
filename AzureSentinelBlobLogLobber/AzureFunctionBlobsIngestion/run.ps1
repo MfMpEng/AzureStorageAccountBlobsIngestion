@@ -154,15 +154,15 @@ Function Write-OMSLogfile {
             "time-generated-field" = $Iso8601ZventTime;
         }
         $response = Invoke-WebRequest -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $body -UseBasicParsing  -Verbose
-        Write-Verbose -Message ('Post Function Return Code ' + $response.statuscode)
+        # Write-Verbose -Message ('Post Function Return Code ' + $response.statuscode)
         return $response.statuscode
     }
     #Build the JSON file
     # $logMessage = ($logdata | ConvertTo-Json -depth 4)
-    Write-Verbose -Message ("Log Message POST Body:`n" + $logMessage)
+    # Write-Verbose -Message ("Log Message POST Body:`n" + $logMessage)
     #Submit the data
     $returnCode = Submit-OMSPostReq -CustomerID $CustomerID -SharedKey $SharedKey -Body $logdata -Type $type -Verbose
-    Write-Verbose -Message ("Post Statement Return Code " + $returnCode)
+    # Write-Verbose -Message ("Post Statement Return Code " + $returnCode)
     return $returnCode
 }
 # Output handle
@@ -171,19 +171,19 @@ Function Submit-ChunkLAdata ($corejson, $customLogName) {
     $tempdata = @()
     $tempDataSize = 0
     if ((($corejson |  ConvertTo-Json -depth 4).Length) -gt 25MB) {
-		Write-Warning -Message ("Upload is over 25MB, needs to be split")
+		Write-Verbose -Message ("Upload is over 25MB, needs to be split")
         foreach ($record in $corejson) {
             $tempdata += $record
             $tempDataSize += ($record | ConvertTo-Json -depth 4).Length
             if ($tempDataSize -gt 25MB) {
                 Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $tempdata -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
-                Write-Host "Sending dataset = $TempDataSize"
+                Write-Verbose "Sending dataset = $TempDataSize"
                 $tempdata = $null
                 $tempdata = @()
                 $tempDataSize = 0
             }
         }
-        Write-Host "Sending left over data = $Tempdatasize"
+        Write-Verbose "Sending left over data = $Tempdatasize"
         Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
     }
     Else {
@@ -350,7 +350,6 @@ Function Rename-JsonProperties ([string]$rawJson ) {
     }
     # Convert the updated data back to JSON
     $updatedJson = $modJson | ConvertTo-Json -depth 4
-    Write-Output ("Updated Json Props`n" + $updatedJson)
     return $updatedJson
 }
 # input expand
@@ -374,7 +373,6 @@ Function Expand-JsonGzip([string]$logpath) {
     # Remove the decompressed .json file
     Remove-Item -Path $jsonFilePath
     # Output the JSON content
-    Write-Output "Gunzipped json:`n$jsonContent"
     return $jsonContent
 }
 # input validate
@@ -426,19 +424,21 @@ if ($BlobName -notmatch "\.log$|\.gzip$") {$skipfile = 1}else{
 # LogFile read/validate/processing
 if ($skipNonLog -eq 1){<#NOOP#>}else{
     # LogFile read (switch for gzip/plaintext json)
-    if ($BlobName -like "*gzip") {Expand-JsonGzip $logPath -Verbose}else{$logsFromFile = Get-Content -Path $logPath -Raw|ConvertTo-Json -depth 4}
+    if ($BlobName -like "*gzip") {Expand-JsonGzip $logPath -Verbose;}else{$logsFromFile = Get-Content -Path $logPath -Raw|ConvertTo-Json -depth 4}
     # Validate/Process/Submit json primitive
     if ($logsFromFile.length -eq 0 -or $null -eq $logsFromFile) {$skipfile =1}else{
         $encodedJson = [System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($logsFromFile)) #|ConvertTo-Json -depth 4
-        Write-Output "UTF8 Json From File`n$encodedJson"
+        #Write-Output "UTF8 Json From File`n$encodedJson"
         $CleanJson = Format-DirtyJson $encodedJson -Verbose;
+        Write-Verbose "Formatted Json`n$CleanJson"
         $confirmedJson = Confirm-ValidJson $CleanJson;
         if (!$confirmedJson){$skipfile = 1}else{
             $renamedJsonPrimative = Rename-JsonProperties -rawJson $encodedJson -Verbose
+            Write-Verbose ("Updated Json Props to be dispatched`n" + $renamedJsonPrimative)
             # If log source does not contain table headers
             # $json = Convert-LogLineToJson($log)
             $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName -Verbose
-            Write-Output "Post Result: $LApostResult"
+            Write-Verbose "Post Result: $LApostResult"
         }
     }
 }
@@ -451,7 +451,7 @@ if($LApostResult -eq 200 -or $skipfile -eq 1) {
     Remove-Item $logPath
 }
 Write-LogFooter
-# Cleanup
+# Cleanup env
 [System.GC]::collect() #cleanup memory
 [System.GC]::GetTotalMemory($true) | out-null #Force full garbage collection
 # >>EOF
