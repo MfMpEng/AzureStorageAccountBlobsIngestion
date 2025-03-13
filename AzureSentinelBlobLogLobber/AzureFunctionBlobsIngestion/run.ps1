@@ -16,12 +16,13 @@
         Version:        1.5.0
         Author(s):      MF@CF,Sreedhar Ande, Travis Roberts, kozhemyak
         Last Modified:  2025-03-12
-        Comment:        Migration to Log Ingestion API - Deprecation notice: The Azure Monitor HTTP Data Collector API has been deprecated and will no longer be functional
-                        as of 9/14/2026. It's been replaced by the Logs ingestion API. [.LINK 4]
+        Comment:        Migration to Log Ingestion API - Deprecation notice: The Azure Monitor HTTP Data Collector API
+                        has been deprecated and will no longer be functionalas of 9/14/2026. It's been replaced by the
+                        Logs ingestion API. [.LINK 4]
         CHANGE HISTORY
         1.0.0 Inital release of code
-        1.3.0 Submits blob content not queue message
-        1.5.0 Handles gzip, optionally unstructured json, and sanitizes inputs
+        1.5.0 Submits blob content not queue message
+        2.0.0 Options to Use Log Ingestion API
 #>
 # Input bindings are passed in via param block.
 param( [object]$QueueItem, [object]$TriggerMetadata )
@@ -98,14 +99,22 @@ function Remove-AzStorageQueueMessage {
         $ContentLength = $Body.Length
         $ContentType = 'text/html; charset=utf-8'
         $rfc1123date = (Get-Date).ToString('R')
-        $signature = Build-Signature -CustomerID $StgAcctName -SharedKey $SharedKey -Date $rfc1123date -ContentLength $ContentLength -method $method -ContentType $ContentType -resource $resource
+        $signature = Build-Signature -CustomerID $StgAcctName -SharedKey $SharedKey -Date $rfc1123date `
+        -ContentLength $ContentLength -method $method -ContentType $ContentType -resource $resource
         $headers = @{
             "Authorization" = $signature;
             "x-ms-date"     = $rfc1123date;
         }
-        $response = Invoke-RestMethod -Uri $uri -Method $method -Headers $headers -ContentType $ContentType -Body $Body -Verbose
-        Write-Verbose -Message ('Storage Queue Delete Return Code ' + $response.statuscode)
-        return $response.statuscode
+        try {
+                $response = Invoke-RestMethod -Uri $uri -Method $method -Headers $headers -ContentType $ContentType -Body $Body -Verbose
+                $QdelResp = $response.statuscode
+                Write-Verbose -Message ('Storage Queue Delete Return Code ' + $QdelResp)
+        } catch {
+                Write-Error "Queue Delete Status Code: $_.Exception.Response.StatusCode.value__"
+                $QdelResp = $_.Exception.Response.StatusCode.value__
+                Write-Error "Queue Delete Status Description: $_.Exception.Response.StatusDescription"
+            }
+        return $QdelResp
     }
     return $resp
     # Extract the storage account name and key from the connection string
@@ -117,7 +126,8 @@ function Remove-AzStorageQueueMessage {
     $param = "?popreceipt=$popReceipt"
     $uri = "https://$StorageAccountName.queue.core.windows.net" + $resource + $param
     # call the wrapper for Build-Headers
-    $resp = Submit-StgAcctDelReq -StgAcctName $StorageAccountName -queueName $queueName -SharedKey $storageAccountKey -Body $resource+$param -uri $uri -Verbose
+    $resp = Submit-StgAcctDelReq -StgAcctName $StorageAccountName -queueName $queueName `
+    -SharedKey $storageAccountKey -Body $resource+$param -uri $uri -Verbose
 }
 # Output construct
 function Build-Signature ($CustomerID, $SharedKey, $Date, $ContentLength, $method, $ContentType, $resource) {
@@ -187,7 +197,8 @@ Function Write-OMSLogfile {
         $rfc1123date = (Get-Date).ToString('R')
         $Iso8601ZventTime = $datetime.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
         $ContentLength = $Body.Length
-        $signature = Build-Signature -CustomerID $CustomerID -SharedKey $SharedKey -Date $rfc1123date -ContentLength $ContentLength -method $method -ContentType $ContentType -resource $resource
+        $signature = Build-Signature -CustomerID $CustomerID -SharedKey $SharedKey -Date $rfc1123date `
+        -ContentLength $ContentLength -method $method -ContentType $ContentType -resource $resource
         $uri = $LAURI.Trim() + $resource + "?api-version=2016-04-01"
         $headers = @{
             "Authorization"        = $signature;
@@ -195,9 +206,16 @@ Function Write-OMSLogfile {
             "Log-Type"             = $type;
             "time-generated-field" = $Iso8601ZventTime;
         }
-        $response = Invoke-RestMethod -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $body -Verbose
+        try {
+            $response = Invoke-RestMethod -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $body -Verbose
+            $ODSresponseCode = $response.StatusCode
+        }catch{
+                Write-Error "Queue Delete Status Code: $_.Exception.Response.StatusCode.value__"
+                $ODSresponseCode = $_.Exception.Response.StatusCode.value__
+                Write-Error "Queue Delete Status Description: $_.Exception.Response.StatusDescription"
+        }
         # Write-Verbose -Message ('Post Function Return Code ' + $response.statuscode)
-        return $response.statuscode
+        return $ODSresponseCode
     }
     #Build the JSON file
     # $logMessage = ($logdata | ConvertTo-Json -depth 4)
@@ -448,7 +466,6 @@ Function Get-EntAppBearerToken ([string]$EntAppId, [string]$EntAppSecret, [strin
     $BearerToken = ConvertTo-SecureString $PlainToken -AsPlainText -Force
     return $BearerToken
 }
-
 ##### Execution
 Write-LogHeader
 #check that fn host env vars' workspace ID is valid and that we're sending to LA HTTP REST
@@ -477,7 +494,8 @@ if ($skipNonLog -eq 1 -or $skipfile -eq 1){<#NOOP#>}else{
     }
     $validJson = $logsFromFile | ConvertFrom-Json
     # Validate/Process/Submit json primitive
-    if ($null -eq $logsFromFile -or $logsFromFile.length -eq 0 -or !$validJson) { $skipfile = 1; Write-Error "Log contents not valid json" }else {
+    if ($null -eq $logsFromFile -or $logsFromFile.length -eq 0 -or !$validJson)
+    { $skipfile = 1; Write-Error "Log contents not valid json" }else {
         # Write-Output "UTF8 Json From File`n$logsFromFile"
         $renamedJsonPrimative = Rename-JsonProperties -rawJson $logsFromFile -Verbose
         $cleanedUnsafeJson = Format-DirtyJson $renamedJsonPrimative
@@ -485,27 +503,36 @@ if ($skipNonLog -eq 1 -or $skipfile -eq 1){<#NOOP#>}else{
         # For use when log source only has prop values, no names
         # $json = Convert-LogLineToJson($log)
         $LApostResult = Submit-ChunkLAdata -Corejson $cleanedUnsafeJson -CustomLogName $LATableName -Verbose
-        Write-Host "Post Result: $LApostResult"
-        if ($null -eq $DCE -or $null -eq $DCEEntAppId -or $null -eq $DCEEntAppRegKey -or $null -eq $tenantId){Write-Error "Env Vars missing details for DCR Submission"}else{
+        Write-Host ("LA Post Result: " + $LApostResult)
+        if ($null -eq $DCE -or $null -eq $DCEEntAppId -or $null -eq $DCEEntAppRegKey -or $null -eq $tenantId)
+        {Write-Error "Env Vars missing details for DCR Submission"}else{
             $SstrToken = Get-EntAppBearerToken -EntAppId $DCEEntAppId -EntAppSecret $DCEEntAppRegKey -AzTenantId $tenantId
             $DCEmethod = 'Post'
             $DCEcontentType = 'application/json'
             $DCEauthType = 'Bearer'
-            $DCEpostResult = Invoke-RestMethod -Uri $DCE -Method $DCEmethod -ContentType $DCEcontentType `
-            -Authentication $DCEauthType -Token $SstrToken -Body $cleanedUnsafeJson -Verbose # -Headers $headers -Infile $logPath
-            Write-Output ("DCE POST Result:" + $DCEpostResult.statuscode)
+            try {
+                $DCEpostResult = Invoke-RestMethod -Uri $DCE -Method $DCEmethod -ContentType $DCEcontentType `
+                -Authentication $DCEauthType -Token $SstrToken -Body $cleanedUnsafeJson -Verbose # -Headers $headers -Infile $logPath
+                $DCEpostStatus = $DCEpostResult.statuscode
+                Write-Output ("DCE POST Result: " + $DCEpostStatus + " " + $DCEpostResult.content)
+            } catch {
+                Write-Error "DCE Post Status Code: $_.Exception.Response.StatusCode.value__"
+                Write-Error "DCE Post Status Description: $_.Exception.Response.StatusDescription"
+            }
         }
     }
 }
 # Cleanup storage blob/queue
-if($LApostResult -eq 200 -or $skipfile -eq 1 -or $DCEpostResult.statuscode -eq 204) {
+if ($LApostResult -eq 200 -or $skipfile -eq 1 -or $DCEpostStatus -eq 204) {
     # Skip deletion of empty/irrelevant blobs
     if (!$skipfile -and !$skipNonLog) {
         Write-Host ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
         Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Verbose
         Remove-Item $logPath
     }
-    Remove-AzStorageQueueMessage -StorageAccountName $StorageAccountName -queueName $StgQueueName -messageId $QueueID -popReceipt $QueuePOP -connectionString $AzureWebJobsStorage
+    $queueDelResponse = Remove-AzStorageQueueMessage -StorageAccountName $StorageAccountName -queueName $StgQueueName `
+    -messageId $QueueID -popReceipt $QueuePOP -connectionString $AzureWebJobsStorage -Verbose
+    Write-Output ("Queue Message Deletion Status: " + $queueDelResponse)
 }
 Write-LogFooter
 # Cleanup env
