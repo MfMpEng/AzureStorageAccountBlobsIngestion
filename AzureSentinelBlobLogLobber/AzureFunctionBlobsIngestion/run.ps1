@@ -442,8 +442,8 @@ Function Get-EntAppBearerToken ([string]$EntAppId, [string]$EntAppSecret, [strin
     $body = "client_id=$EntAppId&scope=$scope&client_secret=$EntAppSecret&grant_type=client_credentials";
     # $headers = @{"Content-Type" = "application/x-www-form-urlencoded" };
     $uri = "https://login.microsoftonline.com/$AzTenantId/oauth2/v2.0/token"
-    $bearerToken = (Invoke-RestMethod -Uri $uri -Method "Post" -ContentType 'application/x-www-form-urlencoded' -Body $body).access_token
-    $headers = @{"Authorization" = "Bearer $Bear"; "Content-Type" = "application/json" ;  };
+    $BearerToken = (Invoke-RestMethod -Uri $uri -Method "Post" -ContentType 'application/x-www-form-urlencoded' -Body $body).access_token
+    $headers = @{"Authorization" = "Bearer $BearerToken"; "Content-Type" = "application/json" ;  };
     return $headers
 }
 
