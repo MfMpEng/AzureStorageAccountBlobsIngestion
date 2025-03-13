@@ -100,10 +100,10 @@ function Remove-AzStorageQueueMessage {
         $rfc1123date = (Get-Date).ToString('R')
         $signature = Build-Signature -CustomerID $StgAcctName -SharedKey $SharedKey -Date $rfc1123date -ContentLength $ContentLength -method $method -ContentType $ContentType -resource $resource
         $headers = @{
-            #"Authorization" = $signature;
+            "Authorization" = $signature;
             "x-ms-date"     = $rfc1123date;
         }
-        $response = Invoke-RestMethod -Uri $uri -Method $method -Headers $headers -ContentType $ContentType -Authentication Bearer -Token $signature -Body $Body -Verbose
+        $response = Invoke-RestMethod -Uri $uri -Method $method -Headers $headers -ContentType $ContentType -Body $Body -Verbose
         Write-Verbose -Message ('Storage Queue Delete Return Code ' + $response.statuscode)
         return $response.statuscode
     }
@@ -117,7 +117,7 @@ function Remove-AzStorageQueueMessage {
     $param = "?popreceipt=$popReceipt"
     $uri = "https://$StorageAccountName.queue.core.windows.net" + $resource + $param
     # call the wrapper for Build-Headers
-    $resp = Submit-StgAcctDelReq -StgAcctName $StorageAccountName -queueName $queueName -SharedKey $storageAccountKey -Body $resource+$param -uri $uri
+    $resp = Submit-StgAcctDelReq -StgAcctName $StorageAccountName -queueName $queueName -SharedKey $storageAccountKey -Body $resource+$param -uri $uri -Verbose
 }
 # Output construct
 function Build-Signature ($CustomerID, $SharedKey, $Date, $ContentLength, $method, $ContentType, $resource) {
@@ -190,12 +190,12 @@ Function Write-OMSLogfile {
         $signature = Build-Signature -CustomerID $CustomerID -SharedKey $SharedKey -Date $rfc1123date -ContentLength $ContentLength -method $method -ContentType $ContentType -resource $resource
         $uri = $LAURI.Trim() + $resource + "?api-version=2016-04-01"
         $headers = @{
-            #"Authorization"        = $signature;
-            "Log-Type"             = $type;
+            "Authorization"        = $signature;
             "x-ms-date"            = $rfc1123date;
+            "Log-Type"             = $type;
             "time-generated-field" = $Iso8601ZventTime;
         }
-        $response = Invoke-RestMethod -Uri $uri -Method $method -ContentType $ContentType -Authentication Bearer -Token $signature -Headers $headers -Body $body -Verbose
+        $response = Invoke-RestMethod -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $body -Verbose
         # Write-Verbose -Message ('Post Function Return Code ' + $response.statuscode)
         return $response.statuscode
     }
@@ -439,12 +439,14 @@ Function Format-DirtyJson ([string]$jsonString) {
 # input construct
 Function Get-EntAppBearerToken ([string]$EntAppId, [string]$EntAppSecret, [string]$AzTenantId) {
     $scope = [System.Web.HttpUtility]::UrlEncode("https://monitor.azure.com//.default")
-    $body = "client_id=$EntAppId&scope=$scope&client_secret=$EntAppSecret&grant_type=client_credentials";
-    # $headers = @{"Content-Type" = "application/x-www-form-urlencoded" };
     $uri = "https://login.microsoftonline.com/$AzTenantId/oauth2/v2.0/token"
-    $BearerToken = (Invoke-RestMethod -Uri $uri -Method "Post" -ContentType 'application/x-www-form-urlencoded' -Body $body).access_token
-    $headers = @{"Authorization" = "Bearer $BearerToken"; "Content-Type" = "application/json" ;  };
-    return $headers
+    $method = "Post"
+    $contentType = 'application/x-www-form-urlencoded'
+    $body = "client_id=$EntAppId&scope=$scope&client_secret=$EntAppSecret&grant_type=client_credentials";
+    $PlainToken = (Invoke-RestMethod -Uri $uri -Method $method -ContentType $contentType -Body $body).access_token
+    # $headers = @{"Authorization" = "Bearer $BearerToken";};
+    $BearerToken = ConvertTo-SecureString $PlainToken -AsPlainText -Force
+    return $BearerToken
 }
 
 ##### Execution
@@ -485,8 +487,12 @@ if ($skipNonLog -eq 1 -or $skipfile -eq 1){<#NOOP#>}else{
         $LApostResult = Submit-ChunkLAdata -Corejson $cleanedUnsafeJson -CustomLogName $LATableName -Verbose
         Write-Host "Post Result: $LApostResult"
         if ($null -eq $DCE -or $null -eq $DCEEntAppId -or $null -eq $DCEEntAppRegKey -or $null -eq $tenantId){Write-Error "Env Vars missing details for DCR Submission"}else{
-            $headers = Get-EntAppBearerToken -EntAppId $DCEEntAppId -EntAppSecret $DCEEntAppRegKey -AzTenantId $tenantId
-            $DCEpostResult = Invoke-RestMethod -Uri $DCE -Method 'Post' -ContentType 'application/json' <#-Authentication Bearer -Token $btok#> -Headers $headers -Body $cleanedUnsafeJson -Verbose #-Infile $logPath
+            $SstrToken = Get-EntAppBearerToken -EntAppId $DCEEntAppId -EntAppSecret $DCEEntAppRegKey -AzTenantId $tenantId
+            $DCEmethod = 'Post'
+            $DCEcontentType = 'application/json'
+            $DCEauthType = 'Bearer'
+            $DCEpostResult = Invoke-RestMethod -Uri $DCE -Method $DCEmethod -ContentType $DCEcontentType `
+            -Authentication $DCEauthType -Token $SstrToken -Body $cleanedUnsafeJson -Verbose # -Headers $headers -Infile $logPath
             Write-Output ("DCE POST Result:" + $DCEpostResult.statuscode)
         }
     }
