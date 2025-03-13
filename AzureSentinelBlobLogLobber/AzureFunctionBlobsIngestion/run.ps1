@@ -236,7 +236,7 @@ Function Submit-ChunkLAdata ($corejson, $customLogName) {
             $tempdata += $record
             $tempDataSize += ($record | ConvertTo-Json -depth 4).Length
             if ($tempDataSize -gt 25MB) {
-                Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $tempdata -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
+                $ret = Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $tempdata -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
                 Write-Verbose "Sending dataset = $TempDataSize"
                 $tempdata = $null
                 $tempdata = @()
@@ -244,12 +244,13 @@ Function Submit-ChunkLAdata ($corejson, $customLogName) {
             }
         }
         Write-Verbose "Sending left over data = $Tempdatasize"
-        Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
+        $ret = Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
     }
     Else {
         #Send to Log A as is
-        Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
+        $ret = Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
     }
+    return $ret
 }
 # Input parse
 # Function Convert-LogLineToJson([String] $logLine) {
@@ -514,9 +515,10 @@ if ($skipNonLog -eq 1 -or $skipfile -eq 1){<#NOOP#>}else{
                 $DCEpostResult = Invoke-RestMethod -Uri $DCE -Method $DCEmethod -ContentType $DCEcontentType `
                 -Authentication $DCEauthType -Token $SstrToken -Body $cleanedUnsafeJson -Verbose # -Headers $headers -Infile $logPath
                 $DCEpostStatus = $DCEpostResult.statuscode
-                Write-Output ("DCE POST Result: " + $DCEpostStatus + " " + $DCEpostResult.content)
+                Write-Output ("DCE POST Result: " + $DCEpostStatus + " " + $DCEpostResult.content + " " + $DCEpostResult)
             } catch {
                 Write-Error "DCE Post Status Code: $_.Exception.Response.StatusCode.value__"
+                $DCEpostStatus = $_.Exception.Response.StatusCode.value__
                 Write-Error "DCE Post Status Description: $_.Exception.Response.StatusDescription"
             }
         }
