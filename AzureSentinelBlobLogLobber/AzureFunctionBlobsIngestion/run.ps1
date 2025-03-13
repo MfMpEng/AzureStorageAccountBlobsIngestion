@@ -7,13 +7,14 @@
         LA Workspace REST API JSON POST reqwuest
     .LINK
         https://learn.microsoft.com/en-us/rest/api/loganalytics/create-request
+        https://learn.microsoft.com/en-us/previous-versions/azure/azure-monitor/logs/data-collector-api?tabs=powershell
     .NOTES
         Title:          Azure Sentinel Blob Log Lobber - Process Json Blobs via Storage Queue Messages
         Language:       PowerShell
         Version:        1.5.0
         Author(s):      MF@CF,Sreedhar Ande, Travis Roberts, kozhemyak
-        Last Modified:  2025-03-11
-        Comment:        Extensibility
+        Last Modified:  2025-03-12
+        Comment:        Migration to Log Ingestion API - Deprecation notice for HTTP Data Collector API in .LINKS
         CHANGE HISTORY
         1.0.0 Inital release of code
         1.3.0 Submits blob content not queue message
@@ -31,6 +32,11 @@ $Workspacekey = $env:LogAnalyticsWorkspaceKey
 $LATableName = $env:LATableName
 $StgQueueName = $env:StgQueueName
 $LAURI = $env:LAURI
+# TODO: ARM with DCR/DCE and EntApp
+$DCE = $env:DCE
+$tenantId = $env:tenantId
+$DCEEntAppId = $env:DCEEntAppId
+$DCEEntAppRegKey = $env:DCEEntAppRegKey
 ##### Init vars
 # $ResourceGroup      = $QueueArr.topic.split('/')[4]
 $QueueMsg = ConvertTo-Json $QueueItem -depth 4
@@ -293,7 +299,7 @@ Function Rename-JsonProperties ([string]$rawJson ) {
         "@timestamp"                = "F5_timestamp_CF";
         "action"                    = "action_CF";
         "api_endpoint"              = "api_endpoint_CF";
-        "app_firewall_name"         = "app_firewall_name_CF"; # Added property
+        "app_firewall_name"         = "app_firewall_name_CF";
         "app_type"                  = "app_type_CF";
         "app"                       = "app_CF";
         "as_number"                 = "as_number_CF";
@@ -316,7 +322,7 @@ Function Rename-JsonProperties ([string]$rawJson ) {
         "dst_port"                  = "dst_port_CF";
         "dst_site"                  = "dst_site_CF";
         "dst"                       = "dst_CF";
-        "enforcement_mode"          = "enforcement_mode_CF"; # Added property
+        "enforcement_mode"          = "enforcement_mode_CF";
         "excluded_threat_campaigns" = "excluded_threat_campaigns_CF";
         "hostname"                  = "hostname_CF";
         "http_version"              = "http_version_CF";
@@ -427,6 +433,16 @@ Function Format-DirtyJson ([string]$jsonString) {
     # }
     return $jsonString
 }
+# input construct
+Function GetEntAppBearerToken ([string]$appId, [string]$appSecret, [string]$tenantId) {
+    $scope = [System.Web.HttpUtility]::UrlEncode("https://monitor.azure.com//.default")
+    $body = "client_id=$appId&scope=$scope&client_secret=$appSecret&grant_type=client_credentials";
+    $headers = @{"Content-Type" = "application/x-www-form-urlencoded" };
+    $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
+    $bearerToken = (Invoke-RestMethod -Uri $uri -Method "Post" -Body $body -Headers $headers).access_token
+    return $bearerToken
+}
+
 ##### Execution
 Write-LogHeader
 #check that fn host env vars' workspace ID is valid and that we're sending to LA HTTP REST
@@ -464,10 +480,16 @@ if ($skipNonLog -eq 1 -or $skipfile -eq 1){<#NOOP#>}else{
         # $json = Convert-LogLineToJson($log)
         $LApostResult = Submit-ChunkLAdata -Corejson $cleanedUnsafeJson -CustomLogName $LATableName -Verbose
         Write-Host "Post Result: $LApostResult"
+        if ($null -eq $dce -or $null -eq $DCEEntAppId -or $null -eq $DCEEntAppRegKey -or $null -eq $tenantId){<#NOOP#>}else{
+            $Bear = GetEntAppBearerToken -appid $DCEEntAppId -appsecret $DCEEntAppRegKey -tenantId $tenantId
+            $headers = @{"Authorization" = "Bearer $Bear"; "Content-Type" = "application/json" };
+            $DCEpostResult = Invoke-RestMethod -Uri $DCE -Method "POST" -Body $cleanedUnsafeJson -Headers $headers
+            Write-Output "DCE POST Result: $DCEpostResult"
+        }
     }
 }
 # Cleanup storage blob/queue
-if($LApostResult -eq 200 -or $skipfile -eq 1) {
+if($LApostResult -eq 200 -or $skipfile -eq 1 -or $DCEpostResult -eq 204) {
     # Skip deletion of empty/irrelevant blobs
     if (!$skipfile -and !$skipNonLog) {
         Write-Host ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
