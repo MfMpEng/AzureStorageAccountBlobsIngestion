@@ -190,12 +190,12 @@ Function Write-OMSLogfile {
         $signature = Build-Signature -CustomerID $CustomerID -SharedKey $SharedKey -Date $rfc1123date -ContentLength $ContentLength -method $method -ContentType $ContentType -resource $resource
         $uri = $LAURI.Trim() + $resource + "?api-version=2016-04-01"
         $headers = @{
-            "Authorization"        = $signature;
+            #"Authorization"        = $signature;
             "Log-Type"             = $type;
             "x-ms-date"            = $rfc1123date;
             "time-generated-field" = $Iso8601ZventTime;
         }
-        $response = Invoke-WebRequest -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $body -UseBasicParsing  -Verbose
+        $response = Invoke-RestMethod -Uri $uri -Method $method -ContentType $ContentType -Authentication Bearer -Token $signature -Headers $headers -Body $body -Verbose
         # Write-Verbose -Message ('Post Function Return Code ' + $response.statuscode)
         return $response.statuscode
     }
@@ -443,8 +443,8 @@ Function Get-EntAppBearerToken ([string]$EntAppId, [string]$EntAppSecret, [strin
     # $headers = @{"Content-Type" = "application/x-www-form-urlencoded" };
     $uri = "https://login.microsoftonline.com/$AzTenantId/oauth2/v2.0/token"
     $bearerToken = (Invoke-RestMethod -Uri $uri -Method "Post" -ContentType 'application/x-www-form-urlencoded' -Body $body).access_token
-    #$headers = @{"Authorization" = "Bearer $Bear"; "Content-Type" = "application/json" ;  };
-    return $bearerToken
+    $headers = @{"Authorization" = "Bearer $Bear"; "Content-Type" = "application/json" ;  };
+    return $headers
 }
 
 ##### Execution
@@ -484,15 +484,15 @@ if ($skipNonLog -eq 1 -or $skipfile -eq 1){<#NOOP#>}else{
         # $json = Convert-LogLineToJson($log)
         $LApostResult = Submit-ChunkLAdata -Corejson $cleanedUnsafeJson -CustomLogName $LATableName -Verbose
         Write-Host "Post Result: $LApostResult"
-        if ($null -eq $DCE -or $null -eq $DCEEntAppId -or $null -eq $DCEEntAppRegKey -or $null -eq $tenantId){Write-Output "Env Vars missing details for DCR Submission"}else{
-            $btok = Get-EntAppBearerToken -EntAppId $DCEEntAppId -EntAppSecret $DCEEntAppRegKey -AzTenantId $tenantId
-            $DCEpostResult = Invoke-RestMethod -Uri $DCE -Method 'Post' -ContentType 'application/json' -Authentication Bearer -Token $btok -Body $cleanedUnsafeJson #-Infile $logPath
+        if ($null -eq $DCE -or $null -eq $DCEEntAppId -or $null -eq $DCEEntAppRegKey -or $null -eq $tenantId){Write-Error "Env Vars missing details for DCR Submission"}else{
+            $headers = Get-EntAppBearerToken -EntAppId $DCEEntAppId -EntAppSecret $DCEEntAppRegKey -AzTenantId $tenantId
+            $DCEpostResult = Invoke-RestMethod -Uri $DCE -Method 'Post' -ContentType 'application/json' <#-Authentication Bearer -Token $btok#> -Headers $headers -Body $cleanedUnsafeJson -Verbose #-Infile $logPath
             Write-Output ("DCE POST Result:" + $DCEpostResult.statuscode)
         }
     }
 }
 # Cleanup storage blob/queue
-if($LApostResult -eq 200 -or $skipfile -eq 1 -or $DCEpostResult -eq 204) {
+if($LApostResult -eq 200 -or $skipfile -eq 1 -or $DCEpostResult.statuscode -eq 204) {
     # Skip deletion of empty/irrelevant blobs
     if (!$skipfile -and !$skipNonLog) {
         Write-Host ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
