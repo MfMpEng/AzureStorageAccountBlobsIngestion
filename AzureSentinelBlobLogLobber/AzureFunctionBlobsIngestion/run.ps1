@@ -1,12 +1,14 @@
 <#
     .DESCRIPTION
-        This function monitors an Azure Storage queue for messages, then retrieves the file and preps it for
+        This function monitors an Azure Storage Queue for Block Blob Write Messages, then retrieves the Blob and preps it for POST submission to
     .INPUTS
-        storage queue messages
+        Storage Queue Blob Write messages
     .OUTPUTS
-        LA Workspace REST API JSON POST reqwuest
+        Azure Monitor HTTP REST API JSON POST request, (soon) Logs Ingestion API POST request
     .LINK
         https://learn.microsoft.com/en-us/rest/api/loganalytics/create-request
+        https://learn.microsoft.com/en-us/azure/azure-monitor/logs/api/errors
+        https://learn.microsoft.com/en-us/azure/azure-monitor/logs/custom-logs-migrate
         https://learn.microsoft.com/en-us/previous-versions/azure/azure-monitor/logs/data-collector-api?tabs=powershell
     .NOTES
         Title:          Azure Sentinel Blob Log Lobber - Process Json Blobs via Storage Queue Messages
@@ -14,7 +16,8 @@
         Version:        1.5.0
         Author(s):      MF@CF,Sreedhar Ande, Travis Roberts, kozhemyak
         Last Modified:  2025-03-12
-        Comment:        Migration to Log Ingestion API - Deprecation notice for HTTP Data Collector API in .LINKS
+        Comment:        Migration to Log Ingestion API - Deprecation notice: The Azure Monitor HTTP Data Collector API has been deprecated and will no longer be functional
+                        as of 9/14/2026. It's been replaced by the Logs ingestion API. [.LINK 4]
         CHANGE HISTORY
         1.0.0 Inital release of code
         1.3.0 Submits blob content not queue message
@@ -97,11 +100,11 @@ function Remove-AzStorageQueueMessage {
         $rfc1123date = (Get-Date).ToString('R')
         $signature = Build-Signature -CustomerID $StgAcctName -SharedKey $SharedKey -Date $rfc1123date -ContentLength $ContentLength -method $method -ContentType $ContentType -resource $resource
         $headers = @{
-            "Authorization" = $signature;
+            #"Authorization" = $signature;
             "x-ms-date"     = $rfc1123date;
         }
-        $response = Invoke-RestMethod -Uri $uri -Method $method -Headers $headers -Body $Body -ContentType $ContentType -UseBasicParsing -Verbose
-        # Write-Verbose -Message ('Post Function Return Code ' + $response.statuscode)
+        $response = Invoke-RestMethod -Uri $uri -Method $method -Headers $headers -ContentType $ContentType -Authentication Bearer -Token $signature -Body $Body -Verbose
+        Write-Verbose -Message ('Storage Queue Delete Return Code ' + $response.statuscode)
         return $response.statuscode
     }
     return $resp
@@ -117,7 +120,7 @@ function Remove-AzStorageQueueMessage {
     $resp = Submit-StgAcctDelReq -StgAcctName $StorageAccountName -queueName $queueName -SharedKey $storageAccountKey -Body $resource+$param -uri $uri
 }
 # Output construct
-function Build-signature ($CustomerID, $SharedKey, $Date, $ContentLength, $method, $ContentType, $resource) {
+function Build-Signature ($CustomerID, $SharedKey, $Date, $ContentLength, $method, $ContentType, $resource) {
     # Function creates the Authorization signature header value
     $xheaders = 'x-ms-date:' + $Date
     $stringToHash = $method + "`n" + $contentLength + "`n" + $contentType + "`n" + $xHeaders + "`n" + $resource
@@ -434,12 +437,13 @@ Function Format-DirtyJson ([string]$jsonString) {
     return $jsonString
 }
 # input construct
-Function GetEntAppBearerToken ([string]$appId, [string]$appSecret, [string]$tenantId) {
+Function Get-EntAppBearerToken ([string]$EntAppId, [string]$EntAppSecret, [string]$AzTenantId) {
     $scope = [System.Web.HttpUtility]::UrlEncode("https://monitor.azure.com//.default")
-    $body = "client_id=$appId&scope=$scope&client_secret=$appSecret&grant_type=client_credentials";
-    $headers = @{"Content-Type" = "application/x-www-form-urlencoded" };
-    $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
-    $bearerToken = (Invoke-RestMethod -Uri $uri -Method "Post" -Body $body -Headers $headers).access_token
+    $body = "client_id=$EntAppId&scope=$scope&client_secret=$EntAppSecret&grant_type=client_credentials";
+    # $headers = @{"Content-Type" = "application/x-www-form-urlencoded" };
+    $uri = "https://login.microsoftonline.com/$AzTenantId/oauth2/v2.0/token"
+    $bearerToken = (Invoke-RestMethod -Uri $uri -Method "Post" -ContentType 'application/x-www-form-urlencoded' -Body $body).access_token
+    #$headers = @{"Authorization" = "Bearer $Bear"; "Content-Type" = "application/json" ;  };
     return $bearerToken
 }
 
@@ -480,11 +484,10 @@ if ($skipNonLog -eq 1 -or $skipfile -eq 1){<#NOOP#>}else{
         # $json = Convert-LogLineToJson($log)
         $LApostResult = Submit-ChunkLAdata -Corejson $cleanedUnsafeJson -CustomLogName $LATableName -Verbose
         Write-Host "Post Result: $LApostResult"
-        if ($null -eq $dce -or $null -eq $DCEEntAppId -or $null -eq $DCEEntAppRegKey -or $null -eq $tenantId){<#NOOP#>}else{
-            $Bear = GetEntAppBearerToken -appid $DCEEntAppId -appsecret $DCEEntAppRegKey -tenantId $tenantId
-            $headers = @{"Authorization" = "Bearer $Bear"; "Content-Type" = "application/json" };
-            $DCEpostResult = Invoke-RestMethod -Uri $DCE -Method "POST" -Body $cleanedUnsafeJson -Headers $headers
-            Write-Output "DCE POST Result: $DCEpostResult"
+        if ($null -eq $DCE -or $null -eq $DCEEntAppId -or $null -eq $DCEEntAppRegKey -or $null -eq $tenantId){Write-Output "Env Vars missing details for DCR Submission"}else{
+            $btok = Get-EntAppBearerToken -EntAppId $DCEEntAppId -EntAppSecret $DCEEntAppRegKey -AzTenantId $tenantId
+            $DCEpostResult = Invoke-RestMethod -Uri $DCE -Method 'Post' -ContentType 'application/json' -Authentication Bearer -Token $btok -Body $cleanedUnsafeJson #-Infile $logPath
+            Write-Output ("DCE POST Result:" + $DCEpostResult.statuscode)
         }
     }
 }
