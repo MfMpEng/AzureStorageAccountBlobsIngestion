@@ -6,10 +6,10 @@
     .OUTPUTS
         Azure Monitor HTTP REST API JSON POST request, (soon) Logs Ingestion API POST request
     .LINK
-        https://learn.microsoft.com/en-us/rest/api/loganalytics/create-request
-        https://learn.microsoft.com/en-us/azure/azure-monitor/logs/api/errors
-        https://learn.microsoft.com/en-us/azure/azure-monitor/logs/custom-logs-migrate
-        https://learn.microsoft.com/en-us/previous-versions/azure/azure-monitor/logs/data-collector-api?tabs=powershell
+        08/08/2023 https://learn.microsoft.com/en-us/previous-versions/azure/azure-monitor/logs/data-collector-api?tabs=powershell
+        05/07/2024 https://learn.microsoft.com/en-us/rest/api/loganalytics/create-request
+        09/11/2024 https://learn.microsoft.com/en-us/azure/azure-monitor/logs/api/errors
+        09/11/2024 https://learn.microsoft.com/en-us/azure/azure-monitor/logs/custom-logs-migrate
     .NOTES
         Title:          Azure Sentinel Blob Log Lobber - Process Json Blobs via Storage Queue Messages
         Language:       PowerShell
@@ -18,11 +18,16 @@
         Last Modified:  2025-03-12
         Comment:        Migration to Log Ingestion API - Deprecation notice: The Azure Monitor HTTP Data Collector API
                         has been deprecated and will no longer be functionalas of 9/14/2026. It's been replaced by the
-                        Logs ingestion API. [.LINK 4]
+                        Logs ingestion API. [.LINK 1]
         CHANGE HISTORY
         1.0.0 Inital release of code
         1.5.0 Submits blob content not queue message
         2.0.0 Options to Use Log Ingestion API
+        TODO
+        - Convert DCR/LI function into a chunking wrapper like the LA Data Collector
+        - ARM template the direct-endpoint DCR and an EntApp Registration
+        - parameterize json param name hashtable
+
 #>
 # Input bindings are passed in via param block.
 param( [object]$QueueItem, [object]$TriggerMetadata )
@@ -100,7 +105,7 @@ function Remove-AzStorageQueueMessage([string]$StorageAccountName, [string]$queu
         try {
                 $response = Invoke-WebRequest -Uri $uri -Method $method -Headers $headers -ContentType $ContentType -Body $Body -Verbose
                 $QdelResp = $response.statuscode
-                Write-Verbose -Message ('Storage Queue Delete Result ' + $QdelResp)
+                Write-Host -Message ('Storage Queue Delete Result ' + $QdelResp)
         } catch {
                 Write-Error ("Queue Delete Status Code:" + $_.Exception.Response.StatusCode.value__)
                 $QdelResp = $_.Exception.Message
@@ -164,7 +169,6 @@ Function Submit-LogIngestion ( [string]$DCE, [string]$DCEEntAppId, [string]$DCEE
         $response = Invoke-WebRequest -Uri $DCE -Method $DCEmethod -ContentType $DCEcontentType `
             -Authentication $DCEauthType -Token $SstrToken -Body $cleanedUnsafeJson -Verbose # -Headers $headers -Infile $logPath
         $DCEpostStatus = $response.statusCode
-        Write-Output ("DCE POST Result: " + $DCEpostStatus)
     }
     catch {
         Write-Error ("DCE Post Status Code:" + $_.Exception.Response.StatusCode.value__)
@@ -236,13 +240,11 @@ Function Write-LAlogFile {
         try {
             $response = Invoke-WebRequest -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $body -Verbose
             $ODSresponseCode = $response.StatusCode
-            Write-Verbose ("Azure Monitoring Response: " + $ODSresponseCode)
         }catch{
                 Write-Error ("Azure Monitoring Status Code: " + $_.Exception.Response.StatusCode.value__)
                 $ODSresponseCode = $_.Exception.Message
                 Write-Error ("Azure Monitoring Status Description: " + $_.Exception.Response.StatusDescription)
         }
-        # Write-Verbose -Message ('Post Function Return Code ' + $response.statuscode)
         return $ODSresponseCode
     }
     $returnCode = Submit-LApostRequest -CustomerID $CustomerID -SharedKey $SharedKey -Body $logdata -Type $type -Verbose
@@ -254,19 +256,19 @@ Function Submit-ChunkLAdata ([string]$corejson, [string]$customLogName) {
     $tempdata = @()
     $tempDataSize = 0
     if ((($corejson |  ConvertTo-Json -depth 4).Length) -gt 25MB) {
-		Write-Verbose -Message ("Upload is over 25MB, needs to be split")
+		Write-Host -Message ("Upload is over 25MB, needs to be split")
         foreach ($record in $corejson) {
             $tempdata += $record
             $tempDataSize += ($record | ConvertTo-Json -depth 4).Length
             if ($tempDataSize -gt 25MB) {
                 $ret = Write-LAlogFile -dateTime $evtTime -type $customLogName -logdata $tempdata -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
-                Write-Verbose "Sending dataset = $TempDataSize"
+                Write-Host "Sending dataset = $TempDataSize"
                 $tempdata = $null
                 $tempdata = @()
                 $tempDataSize = 0
             }
         }
-        Write-Verbose "Sending left over data = $Tempdatasize"
+        Write-Host "Sending left over data = $Tempdatasize"
         $ret = Write-LAlogFile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
     }
     Else {
@@ -517,7 +519,7 @@ if ($skipfile -eq 1){<#NOOP#>}else{
         Write-Host ("LA Post Result: " + $LApostResult)
         #TODO: Create Chunking wrapper for LI API
         $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey -tenantId $tenantId
-        Write-Host ("LI Post Result: " + $LIpostResult)
+        Write-Host ("LI/DCR/DCE POST Result: " + $LIpostResult)
     }
 }
 # LogFile/Blob/QueueMessage Cleanup
@@ -531,7 +533,7 @@ if ($LApostResult -eq 200 -or $skipfile -eq 1 -or $DCEpostStatus -eq 204) {
         # We polled a queue message about a blob that wasn't valid, just nix the message so some other thread doesn't retry.
         $queueDelResponse = Remove-AzStorageQueueMessage -StorageAccountName $StorageAccountName -queueName $StgQueueName `
         -messageId $QueueID -popReceipt $QueuePOP -connectionString $AzureWebJobsStorage -Verbose
-        Write-Output ("Queue Message Deletion Status: " + $queueDelResponse)
+        Write-Host ("Queue Message Deletion Status: " + $queueDelResponse)
     }
 }
 Write-LogFooter

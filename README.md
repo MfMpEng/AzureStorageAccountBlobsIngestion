@@ -10,7 +10,7 @@ Roots also found in [Travis Roberts' Write-OMSLogfile](https://github.com/tsrob5
 # Storage Account Blobs to Azure Sentinel
 This custom Azure Sentinel Data connector ingests Azure Storage Account Blobs to Azure Sentinel via powershell function app.
 
-![Log Ingetsion Flow](./images/Flow.PNG)
+![Log Ingetsion Flow](./images/Flow2.PNG)
 
 ## **Pre-requisites**
 1. Write a Log Analytics Workspace table into the target Sentinel that fits the schema of the logs being ingested. If either schema or sample log json available, can quick import as custom table in LA Workspace.
