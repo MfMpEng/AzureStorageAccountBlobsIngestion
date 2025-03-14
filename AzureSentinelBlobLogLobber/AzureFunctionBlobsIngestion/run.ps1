@@ -109,9 +109,9 @@ function Remove-AzStorageQueueMessage([string]$StorageAccountName, [string]$queu
                 $QdelResp = $response.statuscode
                 Write-Host -Message ('Storage Queue Delete Result ' + $QdelResp)
         } catch {
-                Write-Error ("Queue Delete Status Code:" + $_.Exception.Response.StatusCode.value__)
+                Write-Error ("Queue Delete Status Code:" + $_.Exception.Type + " " + $_.Exception.ScriptStackTrace)
                 $QdelResp = $_.Exception.Message
-                Write-Error ("Queue Delete Status Description:" + $_.Exception.Response.StatusDescription)
+                Write-Error ("Queue Delete Status Description:" + $_.Exception.CategoryInfo)
             }
         return $QdelResp
     }
@@ -148,7 +148,7 @@ function Build-Signature ($CustomerID, $SharedKey, $Date, $ContentLength, $metho
     # return $encoded
 }
 #Output Handler
-Function Submit-LogIngestion ( [string]$DCE, [string]$DCEEntAppId, [string]$DCEEntAppRegKey, [string]$tenantId) {
+Function Submit-LogIngestion ( [string]$DCE, [string]$DCEEntAppId, [string]$DCEEntAppRegKey, [string]$tenantId, [string]$Body) {
     #supporting function
     Function Get-EntAppBearerToken ([string]$EntAppId, [string]$EntAppSecret, [string]$AzTenantId) {
         # input construct
@@ -169,14 +169,13 @@ Function Submit-LogIngestion ( [string]$DCE, [string]$DCEEntAppId, [string]$DCEE
     $DCEauthType = 'Bearer'
     try {
         $response = Invoke-WebRequest -Uri $DCE -Method $DCEmethod -ContentType $DCEcontentType `
-            -Authentication $DCEauthType -Token $SstrToken -Body $cleanedUnsafeJson -Verbose # -Headers $headers -Infile $logPath
+            -Authentication $DCEauthType -Token $SstrToken -Body $Body -Verbose # -Headers $headers -Infile $logPath
         $DCEpostStatus = $response.statusCode
     }
     catch {
-        Write-Error ("DCE Post Status Code:" + $_.Exception.Response.StatusCode.value__)
+        Write-Error ("LI/DCE Submit Status Code:" + $_.Exception.Type + " " + $_.Exception.ScriptStackTrace)
         $DCEpostStatus = $_.Exception.Message
-        Write-Error ("DCE Post Status Description:" + $_.Exception.Response.StatusDescription)
-        Write-Error ("DCE Failure Message: " + $DCEpostStatus)
+        Write-Error ("LI/DCE Submit Status Description:" + $_.Exception.CategoryInfo)
     }
     return $DCEpostStatus
 }
@@ -243,9 +242,9 @@ Function Write-LAlogFile {
             $response = Invoke-WebRequest -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $body -Verbose
             $ODSresponseCode = $response.StatusCode
         }catch{
-                Write-Error ("Azure Monitoring Status Code: " + $_.Exception.Response.StatusCode.value__)
-                $ODSresponseCode = $_.Exception.Message
-                Write-Error ("Azure Monitoring Status Description: " + $_.Exception.Response.StatusDescription)
+            Write-Error ("LA/ODS Status Code:" + $_.Exception.Type + " " + $_.Exception.ScriptStackTrace)
+            $ODSresponseCode = $_.Exception.Message
+            Write-Error ("LA/ODS Status Description:" + $_.Exception.CategoryInfo)
         }
         return $ODSresponseCode
     }
@@ -490,42 +489,47 @@ if ($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-
     Exit
 }
 # LogFile get (check/skip last, concurrency, etc)
-if ($BlobName -notmatch "\.log$|\.gzip$") {$skipfile = 1}else{
+if ($BlobName -notmatch "\.log$|\.gzip$") {$skipfile = 1;Write-Error "Blob does not match expected format"}else{
     try {
-        Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force |out-null
+        $blobContent = Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force |out-null
         Write-Host "Blob content downloaded to $logPath"
     } catch {
-        Write-Error "Error downloading blob content: $_"
+        $BlobGetResp = $_.Exception.Message
+        Write-Error ("Get Blob Status Code: " + $BlobGetResp + " " + $_.Exception.Type + " " + $_.Exception.ScriptStackTrace)
+        Write-Error ("Get Blob Status Description:" + $_.Exception.CategoryInfo)
         $skipfile = 1
     }
 }
 # LogFile read/validate/process
-if ($skipfile -eq 1){<#NOOP#>}else{
-    # LogFile read (switch for gzip/plaintext json)
-    if ($BlobName -like "*gzip") {
-        $logsFromFile = Expand-JsonGzip $logPath -Verbose;
-    } else {
-        $logsFromFile = Get-Content -Path $logPath -Raw
-        $logsFromFile = [System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($logsFromFile))
-    }
-    $validJson = $logsFromFile | ConvertFrom-Json
+if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $blobContent -ne $(Get-Content $logfile))
+{$skipfile = 1;Write-Error "Blob write to local cache went corrupt or missing."}else{
     # Validate/Process/Submit json primitive
-    if ($null -eq $logsFromFile -or $logsFromFile.length -eq 0 -or !$validJson)
-    { $skipfile = 1; Write-Error "Log contents not valid json" }else {
-        $renamedJsonPrimative = Rename-JsonProperties -rawJson $logsFromFile -Verbose
-        $cleanedUnsafeJson = Format-DirtyJson $renamedJsonPrimative
-        # For use when log source only has prop values, no names
-        # $json = Convert-LogLineToJson($log)
-        Write-Host ("Updated Json Props to be dispatched`n" + $cleanedUnsafeJson)
-        $LApostResult = Submit-ChunkLAdata -Corejson $cleanedUnsafeJson -CustomLogName $LATableName -Verbose
-        Write-Host ("LA Post Result: " + $LApostResult)
-        #TODO: Create Chunking wrapper for LI API
-        $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey -tenantId $tenantId
-        Write-Host ("LI/DCR/DCE POST Result: " + $LIpostResult)
+    if ($null -eq $logsFromFile -or $logsFromFile.length -eq 0)
+    { $skipfile = 1; Write-Error "Log contents empty" } else { #TODO could inject a retry getblob here
+        # LogFile read (switch for gzip/plaintext json)
+        if ($BlobName -like "*gzip") {
+            $logsFromFile = Expand-JsonGzip $logPath -Verbose;
+        } else {
+            $logsFromFile = Get-Content -Path $logPath -Raw
+            $logsFromFile = [System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($logsFromFile))
+        }
+        $cleanedUnsafeJson = Format-DirtyJson $logsfromfile
+        $validJson = $cleanedUnsafeJson | ConvertFrom-Json
+        if (!$validJson){$skipfile =1;Write-Error "Contents of $logfile not valid json"}else{
+            $renamedJsonPrimative = Rename-JsonProperties -rawJson $cleanedUnsafeJson -Verbose
+            # For use when log source only has prop values, no names
+            # $json = Convert-LogLineToJson($log)
+            Write-Host ("Updated Json Props to be dispatched`n" + $renamedJsonPrimative)
+            $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName -Verbose
+            Write-Host ("LA Post Result: " + $LApostResult)
+            #TODO: Create Chunking wrapper for LI API
+            $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey -tenantId $tenantId -Body $renamedJsonPrimative
+            Write-Host ("LI/DCR/DCE POST Result: " + $LIpostResult)
+        }
     }
 }
 # LogFile/Blob/QueueMessage Cleanup
-if ($LApostResult -eq 200 -or $skipfile -eq 1 -or $DCEpostStatus -eq 204) {
+if ($LApostResult -eq 200 -or $DCEpostStatus -eq 204 <#-or $skipfile -eq 1#>) {
     # Skip deletion of empty/irrelevant blobs
     if (!$skipfile) {
         if ($LApostResult) {Write-Host ("Storage Account Blobs ingested into Azure Monitoring API to Workspace Table $LATableName")}
@@ -533,7 +537,7 @@ if ($LApostResult -eq 200 -or $skipfile -eq 1 -or $DCEpostStatus -eq 204) {
         Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Verbose
         Remove-Item $logPath
     }else{
-        # We polled a queue message about a blob that wasn't valid, just nix the message so some other thread doesn't retry.
+        # We polled a queue message about a blob that was missing or invalid. Could just nix queue message to prevent retry.
         $queueDelResponse = Remove-AzStorageQueueMessage -StorageAccountName $StorageAccountName -queueName $StgQueueName `
         -messageId $QueueID -popReceipt $QueuePOP -connectionString $AzureWebJobsStorage -Verbose
         Write-Host ("Queue Message Deletion Status: " + $queueDelResponse)
