@@ -9,7 +9,7 @@ Roots also found in [Travis Roberts' Write-OMSLogfile](https://github.com/tsrob5
 [Official Azure docs](https://learn.microsoft.com/en-us/previous-versions/azure/azure-monitor/logs/data-collector-api?tabs=powershell#sample-requests) recommend hardcoding secrets?
 
 # Azure Sentinel Blob Log Lobber
-This custom Azure Sentinel Data connector ingests Azure Storage Account Blobs to Azure Sentinel via powershell function app.
+This custom Azure Sentinel Data connector ingests Azure Storage Account Blobs to Azure Sentinel via pwsh function app.
 
 ![Log Ingestion Flow](./images/Flow2.PNG)
 

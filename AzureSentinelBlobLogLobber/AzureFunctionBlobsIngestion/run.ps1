@@ -57,6 +57,8 @@ $evtTime = $QueueArr.eventTime
 $BlobName = $QueueArr.subject.split('/')[-1]
 $QueueID = $TriggerMetadata.Id
 $QueuePOP = $TriggerMetadata.PopReceipt
+$DCEbaseURI = $DCE.split('?')[0]
+$DCETable = $DCEbaseURI.split('/')[-1]
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
 $logPath = [System.IO.Path]::Combine($env:TEMP, $BlobName)
 $skipfile = $false;
@@ -526,7 +528,8 @@ if ($skipfile -eq 1){<#NOOP#>}else{
 if ($LApostResult -eq 200 -or $skipfile -eq 1 -or $DCEpostStatus -eq 204) {
     # Skip deletion of empty/irrelevant blobs
     if (!$skipfile) {
-        Write-Host ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
+        if ($LApostResult) {Write-Host ("Storage Account Blobs ingested into Azure Monitoring API to Workspace Table $LATableName")}
+        if ($DCEpostStatus) { Write-Host ("Storage Account Blobs ingested into Azure Log Ingestion API to Workspace Table $DCETable") }
         Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Verbose
         Remove-Item $logPath
     }else{
