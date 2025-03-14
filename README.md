@@ -1,4 +1,4 @@
-More templated rennovation/work in progress/unhinged fork of
+Heavily expanded rennovation/fork of
 [Sreedhar Ande's Azure Storage Account Blobs Ingestion](https://github.com/sreedharande/AzureStorageAccountBlobsIngestion)
 
 Perhaps abandoned, resumed development, or was originally a fork of official
@@ -14,7 +14,7 @@ This custom Azure Sentinel Data connector ingests Azure Storage Account Blobs to
 ![Log Ingestion Flow](./images/Flow2.PNG)
 
 ## **Pre-requisites**
-1. Write a [Log Analytics Workspace Table](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/create-custom-table?tabs=azure-powershell-1%2Cazure-portal-2%2Cazure-portal-3) into the target Sentinel Workspace that fits the schema of the logs being ingested. If either schema or sample log json available, can quick import as custom table in LA Workspace.
+1. Write a [Log Analytics Workspace Table](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/create-custom-table?tabs=azure-powershell-1%2Cazure-portal-2%2Cazure-portal-3) into the target Sentinel Workspace that fits the schema of the logs being ingested. If either schema or sample log json available, can quick import as custom table in LA Workspace. Data Collection Rule (and maybe DC Endpoint) are currently optional, though required for a self-managed custom table. **Note** The original implementation is based on the Azure Monitor API which requires the table is classic/MMA based table, and each LA Workspace has a max cap on them. Creating a schema is not required for the old Analytics API, which just regexp's a table schema based on what's being sent to it. Work in progress from here is converting to DCR-based table/ingestion model, though the intent is to support the old model until it dies.
 
 2. Click on Deploy to Azure (For both Commercial & Azure GOV)
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMfMpEng%2FAzureSentinelBlobLogLobber%2Frefs%2Fheads%2Fmain%2Fazuredeploy.json)
