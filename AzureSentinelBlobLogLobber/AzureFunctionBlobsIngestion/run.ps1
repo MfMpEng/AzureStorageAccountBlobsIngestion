@@ -529,11 +529,11 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
     # }
 }
 # LogFile/Blob/QueueMessage Cleanup
-if ($LApostResult -eq 200 -or $DCEpostStatus -eq 204 <#-or $skipfile -eq 1#>) {
+if ($LApostResult -eq 200 -or $LIpostResult -eq 204 <#-or $skipfile -eq 1#>) {
     # Skip deletion of empty/irrelevant blobs
     if (!$skipfile) {
         if ($LApostResult) {Write-Host ("Storage Account Blobs ingested into Azure Monitoring API to Workspace Table $LATableName")}
-        if ($DCEpostStatus) { Write-Host ("Storage Account Blobs ingested into Azure Log Ingestion API to Workspace Table $DCETable") }
+        if ($LIpostResult) { Write-Host ("Storage Account Blobs ingested into Azure Log Ingestion API to Workspace Table $DCETable") }
         Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Verbose
         Remove-Item $logPath
     }else{
