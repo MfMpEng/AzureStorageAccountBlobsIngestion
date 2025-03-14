@@ -111,7 +111,7 @@ function Remove-AzStorageQueueMessage {
                 Write-Verbose -Message ('Storage Queue Delete Return Code ' + $QdelResp)
         } catch {
                 Write-Error "Queue Delete Status Code: $_.Exception.Response.StatusCode.value__"
-                $QdelResp = $_.Exception.Response.StatusCode.value__
+                $QdelResp = $_.Exception.Message
                 Write-Error "Queue Delete Status Description: $_.Exception.Response.StatusDescription"
             }
         return $QdelResp
@@ -211,7 +211,7 @@ Function Write-OMSLogfile {
             $ODSresponseCode = $response.StatusCode
         }catch{
                 Write-Error "Queue Delete Status Code: $_.Exception.Response.StatusCode.value__"
-                $ODSresponseCode = $_.Exception.Response.StatusCode.value__
+                $ODSresponseCode = $_.Exception.Message
                 Write-Error "Queue Delete Status Description: $_.Exception.Response.StatusDescription"
         }
         # Write-Verbose -Message ('Post Function Return Code ' + $response.statuscode)
@@ -514,11 +514,11 @@ if ($skipNonLog -eq 1 -or $skipfile -eq 1){<#NOOP#>}else{
             try {
                 $DCEpostResult = Invoke-RestMethod -Uri $DCE -Method $DCEmethod -ContentType $DCEcontentType `
                 -Authentication $DCEauthType -Token $SstrToken -Body $cleanedUnsafeJson -Verbose # -Headers $headers -Infile $logPath
-                $DCEpostStatus = $DCEpostResult.statuscode
+                $DCEpostStatus = $DCEpostResult.statusCode
                 Write-Output ("DCE POST Result: " + $DCEpostStatus + " " + $DCEpostResult.content + " " + $DCEpostResult)
             } catch {
-                Write-Error "DCE Post Status Code: $_.Exception.Response.StatusCode.value__"
-                $DCEpostStatus = $_.Exception.Response.StatusCode.value__
+                Write-Error "DCE Post Status Code: : $_.Exception.Message"
+                $DCEpostStatus = $_.Exception.Message
                 Write-Error "DCE Post Status Description: $_.Exception.Response.StatusDescription"
             }
         }
