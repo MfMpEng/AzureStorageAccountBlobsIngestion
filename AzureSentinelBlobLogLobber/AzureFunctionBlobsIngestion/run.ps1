@@ -501,10 +501,10 @@ if ($BlobName -notmatch "\.log$|\.gzip$") {$skipfile = 1;Write-Error "Blob does 
     }
 }
 # LogFile read/validate/process
-if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $blobContent -ne $(Get-Content $logfile))
+if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $blobContent -ne $(Get-Content $logPath))
 {$skipfile = 1;Write-Error "Blob write to local cache went corrupt or missing."}else{
     # Validate/Process/Submit json primitive
-    if ($null -eq $logsFromFile -or $logsFromFile.length -eq 0)
+    if ($(Get-Content $logPath).length -eq 0)
     { $skipfile = 1; Write-Error "Log contents empty" } else { #TODO could inject a retry getblob here
         # LogFile read (switch for gzip/plaintext json)
         if ($BlobName -like "*gzip") {
