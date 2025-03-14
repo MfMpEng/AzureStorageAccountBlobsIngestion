@@ -491,7 +491,7 @@ if ($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-
 # LogFile get (check/skip last, concurrency, etc)
 if ($BlobName -notmatch "\.log$|\.gzip$") {$skipfile = 1;Write-Error "Blob does not match expected format"}else{
     try {
-        $blobContent = Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force |out-null
+        $blobContent = Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force -Verbose
         Write-Host "Blob content downloaded to $logPath"
     } catch {
         $BlobGetResp = $_.Exception.Message
@@ -501,7 +501,7 @@ if ($BlobName -notmatch "\.log$|\.gzip$") {$skipfile = 1;Write-Error "Blob does 
     }
 }
 # LogFile read/validate/process
-if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $blobContent.length -eq 0 <#-or $blobContent -ne $(Get-Content $logPath)#>)
+if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length -eq 0 <#-or $blobContent -ne $(Get-Content $logPath)#>)
 {$skipfile = 1;Write-Error "Blob write to local cache went corrupt, empty, or missing."}else{
     # Validate/Process/Submit json primitive
     # if ($(Get-Content $logPath).length -eq 0)
