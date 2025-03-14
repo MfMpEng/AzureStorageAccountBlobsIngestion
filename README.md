@@ -6,14 +6,15 @@ Perhaps abandoned, resumed development, or was originally a fork of official
 
 Roots also found in [Travis Roberts' Write-OMSLogfile](https://github.com/tsrob50/LogAnalyticsAPIFunction/tree/master)
 
-![Log Ingestion Flow](./images/LogsIngestionFlow.PNG)
-# Storage Account Blobs to Azure Sentinel
+[Official Azure docs](https://learn.microsoft.com/en-us/previous-versions/azure/azure-monitor/logs/data-collector-api?tabs=powershell#sample-requests) recommend hardcoding secrets?
+
+# Azure Sentinel Blob Log Lobber
 This custom Azure Sentinel Data connector ingests Azure Storage Account Blobs to Azure Sentinel via powershell function app.
 
-![Log Ingetsion Flow](./images/Flow2.PNG)
+![Log Ingestion Flow](./images/Flow2.PNG)
 
 ## **Pre-requisites**
-1. Write a Log Analytics Workspace table into the target Sentinel that fits the schema of the logs being ingested. If either schema or sample log json available, can quick import as custom table in LA Workspace.
+1. Write a [Log Analytics Workspace Table](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/create-custom-table?tabs=azure-powershell-1%2Cazure-portal-2%2Cazure-portal-3) into the target Sentinel Workspace that fits the schema of the logs being ingested. If either schema or sample log json available, can quick import as custom table in LA Workspace.
 
 2. Click on Deploy to Azure (For both Commercial & Azure GOV)
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMfMpEng%2FAzureSentinelBlobLogLobber%2Frefs%2Fheads%2Fmain%2Fazuredeploy.json)
@@ -34,5 +35,5 @@ This custom Azure Sentinel Data connector ingests Azure Storage Account Blobs to
 
 ## Details
 1. This ARM template creates an Azure Storage Account Blob Container called ```<<functionAppName>>-2Blob```. Send source logs here.
-2. Powershell Function App orchestrates ingestion based on Event Grid Subscription Topic watching SA blob writes logged in SA Queue.
-3. Fn App triggers log ingestion procedure on Blobs; upon successful LA Workspace REST response, deletes the blob & queueMsg
+2. Powershell Function App orchestrates ingestion by polling Storage Queue blob write messages written by an Event Grid Subscription Topic.
+3. Fn App sanitizes/processes blob json/gzip; upon successful LA Workspace REST response then deletes the local and SA Blob, and Queue Msg.
