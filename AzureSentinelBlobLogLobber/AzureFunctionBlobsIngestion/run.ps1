@@ -15,7 +15,7 @@
         Language:       PowerShell
         Version:        1.5.0
         Author(s):      MF@CF,Sreedhar Ande, Travis Roberts, kozhemyak
-        Last Modified:  2025-03-12
+        Last Modified:  2025-03-14
         Comment:        Migration to Log Ingestion API - Deprecation notice: The Azure Monitor HTTP Data Collector API
                         has been deprecated and will no longer be functionalas of 9/14/2026. It's been replaced by the
                         Logs ingestion API. [.LINK 1]
