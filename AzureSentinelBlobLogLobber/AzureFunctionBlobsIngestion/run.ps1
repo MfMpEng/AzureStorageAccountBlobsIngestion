@@ -54,10 +54,9 @@ $QueueID = $TriggerMetadata.Id
 $QueuePOP = $TriggerMetadata.PopReceipt
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
 $logPath = [System.IO.Path]::Combine($env:TEMP, $BlobName)
-$skipNonLog = $false;
 $skipfile = $false;
 ##### Fn Defs
-# code wrapping.
+# Code Wrapper
 Function Write-LogHeader() {
     # Write out the queue message and metadata to the information log.
     Write-Host ("######################################################################################")
@@ -75,23 +74,16 @@ Function Write-LogHeader() {
     Write-Host ("Queue item next visible time:" + $TriggerMetadata.NextVisibleTime)
     Write-Host ("$evtTime Queue Reported new item - BlobName:  $BlobName")
 }
+# Code Wrapper
 Function Write-LogFooter() {
     Write-Host ("######################################################################################")
     Write-Host ("############################ END TRANSACTION #########################################")
     Write-Host ("################# $BlobName ################")
     Write-Host ("######################################################################################")
 }
-# Output cleanup
-function Remove-AzStorageQueueMessage {
+# Input Cleaner
+function Remove-AzStorageQueueMessage([string]$StorageAccountName, [string]$queueName, [string]$messageId, [string]$popReceipt, [string]$connectionString) {
     # extract SA key and struct body
-    #Remove-AzStorageQueueMessage -StorageAccountName $StorageAccountName -queueName $StgQueueName -messageId $QueueID -popReceipt $QueuePOP -connectionString $AzureWebJobsStorage
-    param (
-        [string]$StorageAccountName,
-        [string]$queueName,
-        [string]$messageId,
-        [string]$popReceipt,
-        [string]$connectionString
-    )
     #supporting function
     Function Submit-StgAcctDelReq ($StgAcctName, $queueName, $SharedKey, $Body, $uri) {
         # struct headers and RPC
@@ -116,7 +108,6 @@ function Remove-AzStorageQueueMessage {
             }
         return $QdelResp
     }
-    return $resp
     # Extract the storage account name and key from the connection string
     $connectionStringParts = $connectionString -split ";"
     # $storageAccountName = ($connectionStringParts | Where-Object { $_ -like "AccountName*" }) -split "=" | Select-Object -Last 1
@@ -128,8 +119,9 @@ function Remove-AzStorageQueueMessage {
     # call the wrapper for Build-Headers
     $resp = Submit-StgAcctDelReq -StgAcctName $StorageAccountName -queueName $queueName `
     -SharedKey $storageAccountKey -Body $resource+$param -uri $uri -Verbose
+    return $resp
 }
-# Output construct
+# Output Constructor (Write-LAlogFile(Submit-LAlogFile), Remove-AzStorageQueueMessage)
 function Build-Signature ($CustomerID, $SharedKey, $Date, $ContentLength, $method, $ContentType, $resource) {
     # Function creates the Authorization signature header value
     $xheaders = 'x-ms-date:' + $Date
@@ -148,31 +140,66 @@ function Build-Signature ($CustomerID, $SharedKey, $Date, $ContentLength, $metho
     # $encoded = [System.Convert]::ToBase64String($hashed)
     # return $encoded
 }
-Function Write-OMSLogfile {
+#Output Handler
+Function Submit-LogIngestion ( [string]$DCE, [string]$DCEEntAppId, [string]$DCEEntAppRegKey, [string]$tenantId) {
+    #supporting function
+    Function Get-EntAppBearerToken ([string]$EntAppId, [string]$EntAppSecret, [string]$AzTenantId) {
+        # input construct
+        $scope = [System.Web.HttpUtility]::UrlEncode("https://monitor.azure.com//.default")
+        $uri = "https://login.microsoftonline.com/$AzTenantId/oauth2/v2.0/token"
+        $method = "Post"
+        $contentType = 'application/x-www-form-urlencoded'
+        $body = "client_id=$EntAppId&scope=$scope&client_secret=$EntAppSecret&grant_type=client_credentials";
+        $PlainToken = (Invoke-RestMethod -Uri $uri -Method $method -ContentType $contentType -Body $body).access_token
+        # -token only accepts [secureString]
+        $BearerToken = ConvertTo-SecureString $PlainToken -AsPlainText -Force
+        return $BearerToken
+    }
+    # Write-Error "Env Vars missing details for DCR Submission"
+    $SstrToken = Get-EntAppBearerToken -EntAppId $DCEEntAppId -EntAppSecret $DCEEntAppRegKey -AzTenantId $tenantId
+    $DCEmethod = 'Post'
+    $DCEcontentType = 'application/json'
+    $DCEauthType = 'Bearer'
+    try {
+        $response = Invoke-WebRequest -Uri $DCE -Method $DCEmethod -ContentType $DCEcontentType `
+            -Authentication $DCEauthType -Token $SstrToken -Body $cleanedUnsafeJson -Verbose # -Headers $headers -Infile $logPath
+        $DCEpostStatus = $response.statusCode
+        Write-Output ("DCE POST Result: " + $DCEpostStatus)
+    }
+    catch {
+        Write-Error ("DCE Post Status Code:" + $_.Exception.Response.StatusCode.value__)
+        $DCEpostStatus = $_.Exception.Message
+        Write-Error ("DCE Post Status Description:" + $_.Exception.Response.StatusDescription)
+        Write-Error ("DCE Failure Message: " + $DCEpostStatus)
+    }
+    return $DCEpostStatus
+}
+# Output Handler Helper
+Function Write-LAlogFile {
     <#
-    .SYNOPSIS
-    Inputs a hashtable, date and workspace type and writes it to a Log Analytics Workspace.
-    .DESCRIPTION
-    Given a  value pair hash table, this function will write the data to an OMS Log Analytics workspace.
-    Certain variables, such as Customer ID and Shared Key are specific to the OMS workspace data is being written to.
-    This function will not write to multiple OMS workspaces.  Build-Signature and post-analytics function from Microsoft documentation
-    at https://docs.microsoft.com/azure/log-analytics/log-analytics-data-collector-api
-    .PARAMETER DateTime
-    date and time for the log.  DateTime value
-    .PARAMETER Type
-    Name of the logfile or Log Analytics "Type".  Log Analytics will append _CL at the end of custom logs  String Value
-    .PARAMETER LogData
-    A series of key, value pairs that will be written to the log.  Log file are unstructured but the key should be consistent
-    withing each source.
-    .INPUTS
-    The parameters of data and time, type and logdata.  Logdata is converted to JSON to submit to Log Analytics.
-    .OUTPUTS
-    The Function will return the HTTP status code from the Post method.  Status code 200 indicates the request was received.
-    .NOTES
-    Version:        2.0
-    Author:         Travis Roberts
-    Creation Date:  7/9/2018
-    Purpose/Change: Crating a stand alone function
+        .SYNOPSIS
+        Inputs a hashtable, date and workspace type and writes it to a Log Analytics Workspace.
+        .DESCRIPTION
+        Given a  value pair hash table, this function will write the data to an OMS Log Analytics workspace.
+        Certain variables, such as Customer ID and Shared Key are specific to the OMS workspace data is being written to.
+        This function will not write to multiple OMS workspaces.  Build-Signature and post-analytics function from Microsoft documentation
+        at https://docs.microsoft.com/azure/log-analytics/log-analytics-data-collector-api
+        .PARAMETER DateTime
+        date and time for the log.  DateTime value
+        .PARAMETER Type
+        Name of the logfile or Log Analytics "Type".  Log Analytics will append _CL at the end of custom logs  String Value
+        .PARAMETER LogData
+        A series of key, value pairs that will be written to the log.  Log file are unstructured but the key should be consistent
+        withing each source.
+        .INPUTS
+        The parameters of data and time, type and logdata.  Logdata is converted to JSON to submit to Log Analytics.
+        .OUTPUTS
+        The Function will return the HTTP status code from the Post method.  Status code 200 indicates the request was received.
+        .NOTES
+        Version:        2.0
+        Author:         Travis Roberts
+        Creation Date:  7/9/2018
+        Purpose/Change: Crating a stand alone function
     #>
     [cmdletbinding()]
     Param(
@@ -187,9 +214,9 @@ Function Write-OMSLogfile {
         [Parameter(Mandatory = $true, Position = 4)]
         [string]$SharedKey
     )
-    # Supporting Functions
-    # Function generates HTTP header/body and POST it
-    Function Submit-OMSPostReq ($CustomerID, $SharedKey, $Body, $Type) {
+    # Output Handler
+    Function Submit-LApostRequest ([string]$CustomerID, [string]$SharedKey, [string]$Body, [string]$Type) {
+        # Function generates HTTP header/body and POST it
         [cmdletbinding()]
         $method = "POST"
         $ContentType = 'application/json'
@@ -218,17 +245,12 @@ Function Write-OMSLogfile {
         # Write-Verbose -Message ('Post Function Return Code ' + $response.statuscode)
         return $ODSresponseCode
     }
-    #Build the JSON file
-    # $logMessage = ($logdata | ConvertTo-Json -depth 4)
-    # Write-Verbose -Message ("Log Message POST Body:`n" + $logMessage)
-    #Submit the data
-    $returnCode = Submit-OMSPostReq -CustomerID $CustomerID -SharedKey $SharedKey -Body $logdata -Type $type -Verbose
-    # Write-Verbose -Message ("Post Statement Return Code " + $returnCode)
+    $returnCode = Submit-LApostRequest -CustomerID $CustomerID -SharedKey $SharedKey -Body $logdata -Type $type -Verbose
     return $returnCode
 }
-# Output handle
-Function Submit-ChunkLAdata ($corejson, $customLogName) {
-    #Wrapper for write-omslogfile to chunk based on REST API limit spec. Max 30Mb, this cuts at 25.
+# Output Wrapper(Write-LAlogFile)
+Function Submit-ChunkLAdata ([string]$corejson, [string]$customLogName) {
+    #Wrapper for Write-LAlogFile to chunk based on REST API limit spec. Max 30Mb, this cuts at 25.
     $tempdata = @()
     $tempDataSize = 0
     if ((($corejson |  ConvertTo-Json -depth 4).Length) -gt 25MB) {
@@ -237,7 +259,7 @@ Function Submit-ChunkLAdata ($corejson, $customLogName) {
             $tempdata += $record
             $tempDataSize += ($record | ConvertTo-Json -depth 4).Length
             if ($tempDataSize -gt 25MB) {
-                $ret = Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $tempdata -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
+                $ret = Write-LAlogFile -dateTime $evtTime -type $customLogName -logdata $tempdata -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
                 Write-Verbose "Sending dataset = $TempDataSize"
                 $tempdata = $null
                 $tempdata = @()
@@ -245,15 +267,15 @@ Function Submit-ChunkLAdata ($corejson, $customLogName) {
             }
         }
         Write-Verbose "Sending left over data = $Tempdatasize"
-        $ret = Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
+        $ret = Write-LAlogFile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
     }
     Else {
         #Send to Log A as is
-        $ret = Write-OMSLogfile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
+        $ret = Write-LAlogFile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
     }
     return $ret
 }
-# Input parse
+# Input Parser
 # Function Convert-LogLineToJson([String] $logLine) {
 #     <#useful if log source does not provide explicit json, only a csv of property values to reconstruct
 #         .LINK
@@ -310,7 +332,7 @@ Function Submit-ChunkLAdata ($corejson, $customLogName) {
 #     $logJson += "}]";
 #     return $logJson
 # }
-# input parse
+# input Parser
 Function Rename-JsonProperties ([string]$rawJson ) {
     # Convert the raw JSON primitive to a PowerShell object
     $modJson = $rawJson | ConvertFrom-Json
@@ -414,7 +436,25 @@ Function Rename-JsonProperties ([string]$rawJson ) {
     $updatedJson = $modJson | ConvertTo-Json -depth 4
     return $updatedJson
 }
-# input expand
+# Input Sanitizer
+Function Format-DirtyJson ([string]$jsonString) {
+    $jsonString = $jsonString -replace '[/&<>]', {
+        switch ($args) {
+            "/" { "&#x2F;" }
+            "&" { "&amp;" }
+            "<" { "&lt;" }
+            ">" { "&gt;" }
+            #'"' { '\"' }
+        }
+    }
+    # $jsonString = $jsonString -replace "[']", {
+    # switch ($args) {
+    # "'" { "&#x27;" }
+    # }
+    # }
+    return $jsonString
+}
+# Input Expander
 Function Expand-JsonGzip([string]$logpath) {
     # Define the path to the decompressed .json file
     $jsonFilePath = [System.IO.Path]::ChangeExtension($logpath, ".json")
@@ -438,39 +478,9 @@ Function Expand-JsonGzip([string]$logpath) {
     # Output the JSON content
     return $encodedJson
 }
-# input sanitize
-Function Format-DirtyJson ([string]$jsonString) {
-    $jsonString = $jsonString -replace '[/&<>]', {
-        switch ($args) {
-            "/" { "&#x2F;" }
-            "&" { "&amp;" }
-            "<" { "&lt;" }
-            ">" { "&gt;" }
-            #'"' { '\"' }
-        }
-    }
-    # $jsonString = $jsonString -replace "[']", {
-        # switch ($args) {
-            # "'" { "&#x27;" }
-        # }
-    # }
-    return $jsonString
-}
-# input construct
-Function Get-EntAppBearerToken ([string]$EntAppId, [string]$EntAppSecret, [string]$AzTenantId) {
-    $scope = [System.Web.HttpUtility]::UrlEncode("https://monitor.azure.com//.default")
-    $uri = "https://login.microsoftonline.com/$AzTenantId/oauth2/v2.0/token"
-    $method = "Post"
-    $contentType = 'application/x-www-form-urlencoded'
-    $body = "client_id=$EntAppId&scope=$scope&client_secret=$EntAppSecret&grant_type=client_credentials";
-    $PlainToken = (Invoke-RestMethod -Uri $uri -Method $method -ContentType $contentType -Body $body).access_token
-    # $headers = @{"Authorization" = "Bearer $BearerToken";};
-    $BearerToken = ConvertTo-SecureString $PlainToken -AsPlainText -Force
-    return $BearerToken
-}
 ##### Execution
 Write-LogHeader
-#check that fn host env vars' workspace ID is valid and that we're sending to LA HTTP REST
+# Validate output destination is expected (old OMS/LA API)
 if ($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-Z\.]+)$') {
     Write-Error -Message ("Storage Account Blobs Ingestion: Invalid Log Analytics Uri." + $LAURI) -ErrorAction Stop
     Exit
@@ -482,11 +492,11 @@ if ($BlobName -notmatch "\.log$|\.gzip$") {$skipfile = 1}else{
         Write-Host "Blob content downloaded to $logPath"
     } catch {
         Write-Error "Error downloading blob content: $_"
-        $skipNonLog = 1
+        $skipfile = 1
     }
 }
-# LogFile read/validate/processing
-if ($skipNonLog -eq 1 -or $skipfile -eq 1){<#NOOP#>}else{
+# LogFile read/validate/process
+if ($skipfile -eq 1){<#NOOP#>}else{
     # LogFile read (switch for gzip/plaintext json)
     if ($BlobName -like "*gzip") {
         $logsFromFile = Expand-JsonGzip $logPath -Verbose;
@@ -498,45 +508,31 @@ if ($skipNonLog -eq 1 -or $skipfile -eq 1){<#NOOP#>}else{
     # Validate/Process/Submit json primitive
     if ($null -eq $logsFromFile -or $logsFromFile.length -eq 0 -or !$validJson)
     { $skipfile = 1; Write-Error "Log contents not valid json" }else {
-        # Write-Output "UTF8 Json From File`n$logsFromFile"
         $renamedJsonPrimative = Rename-JsonProperties -rawJson $logsFromFile -Verbose
         $cleanedUnsafeJson = Format-DirtyJson $renamedJsonPrimative
-        Write-Host ("Updated Json Props to be dispatched`n" + $cleanedUnsafeJson)
         # For use when log source only has prop values, no names
         # $json = Convert-LogLineToJson($log)
+        Write-Host ("Updated Json Props to be dispatched`n" + $cleanedUnsafeJson)
         $LApostResult = Submit-ChunkLAdata -Corejson $cleanedUnsafeJson -CustomLogName $LATableName -Verbose
         Write-Host ("LA Post Result: " + $LApostResult)
-        if ($null -eq $DCE -or $null -eq $DCEEntAppId -or $null -eq $DCEEntAppRegKey -or $null -eq $tenantId)
-        {Write-Error "Env Vars missing details for DCR Submission"}else{
-            $SstrToken = Get-EntAppBearerToken -EntAppId $DCEEntAppId -EntAppSecret $DCEEntAppRegKey -AzTenantId $tenantId
-            $DCEmethod = 'Post'
-            $DCEcontentType = 'application/json'
-            $DCEauthType = 'Bearer'
-            try {
-                $response = Invoke-WebRequest -Uri $DCE -Method $DCEmethod -ContentType $DCEcontentType `
-                -Authentication $DCEauthType -Token $SstrToken -Body $cleanedUnsafeJson -Verbose # -Headers $headers -Infile $logPath
-                $DCEpostStatus = $response.statusCode
-                Write-Output ("DCE POST Result: " + $DCEpostStatus + " . " + $response.content + " . " + $response)
-            } catch {
-                Write-Error ("DCE Post Status Code:" + $_.Exception.Response.StatusCode.value__)
-                $DCEpostStatus = $_.Exception.Message
-                Write-Error ("DCE Post Status Description:" + $_.Exception.Response.StatusDescription)
-                Write-Error ("DCE Failure Message: " + $DCEpostStatus)
-            }
-        }
+        #TODO: Create Chunking wrapper for LI API
+        $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey -tenantId $tenantId
+        Write-Host ("LI Post Result: " + $LIpostResult)
     }
 }
-# Cleanup storage blob/queue
+# LogFile/Blob/QueueMessage Cleanup
 if ($LApostResult -eq 200 -or $skipfile -eq 1 -or $DCEpostStatus -eq 204) {
     # Skip deletion of empty/irrelevant blobs
-    if (!$skipfile -and !$skipNonLog) {
+    if (!$skipfile) {
         Write-Host ("Storage Account Blobs ingested into Azure Log Analytics Workspace Table $LATableName")
         Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Verbose
         Remove-Item $logPath
+    }else{
+        # We polled a queue message about a blob that wasn't valid, just nix the message so some other thread doesn't retry.
+        $queueDelResponse = Remove-AzStorageQueueMessage -StorageAccountName $StorageAccountName -queueName $StgQueueName `
+        -messageId $QueueID -popReceipt $QueuePOP -connectionString $AzureWebJobsStorage -Verbose
+        Write-Output ("Queue Message Deletion Status: " + $queueDelResponse)
     }
-    $queueDelResponse = Remove-AzStorageQueueMessage -StorageAccountName $StorageAccountName -queueName $StgQueueName `
-    -messageId $QueueID -popReceipt $QueuePOP -connectionString $AzureWebJobsStorage -Verbose
-    Write-Output ("Queue Message Deletion Status: " + $queueDelResponse)
 }
 Write-LogFooter
 # Cleanup env
