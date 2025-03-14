@@ -106,13 +106,13 @@ function Remove-AzStorageQueueMessage {
             "x-ms-date"     = $rfc1123date;
         }
         try {
-                $response = Invoke-RestMethod -Uri $uri -Method $method -Headers $headers -ContentType $ContentType -Body $Body -Verbose
+                $response = Invoke-WebRequest -Uri $uri -Method $method -Headers $headers -ContentType $ContentType -Body $Body -Verbose
                 $QdelResp = $response.statuscode
-                Write-Verbose -Message ('Storage Queue Delete Return Code ' + $QdelResp)
+                Write-Verbose -Message ('Storage Queue Delete Result ' + $QdelResp)
         } catch {
-                Write-Error "Queue Delete Status Code: $_.Exception.Response.StatusCode.value__"
+                Write-Error ("Queue Delete Status Code:" + $_.Exception.Response.StatusCode.value__)
                 $QdelResp = $_.Exception.Message
-                Write-Error "Queue Delete Status Description: $_.Exception.Response.StatusDescription"
+                Write-Error ("Queue Delete Status Description:" + $_.Exception.Response.StatusDescription)
             }
         return $QdelResp
     }
@@ -207,12 +207,13 @@ Function Write-OMSLogfile {
             "time-generated-field" = $Iso8601ZventTime;
         }
         try {
-            $response = Invoke-RestMethod -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $body -Verbose
+            $response = Invoke-WebRequest -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $body -Verbose
             $ODSresponseCode = $response.StatusCode
+            Write-Verbose ("Azure Monitoring Response: " + $ODSresponseCode)
         }catch{
-                Write-Error "Queue Delete Status Code: $_.Exception.Response.StatusCode.value__"
+                Write-Error ("Azure Monitoring Status Code: " + $_.Exception.Response.StatusCode.value__)
                 $ODSresponseCode = $_.Exception.Message
-                Write-Error "Queue Delete Status Description: $_.Exception.Response.StatusDescription"
+                Write-Error ("Azure Monitoring Status Description: " + $_.Exception.Response.StatusDescription)
         }
         # Write-Verbose -Message ('Post Function Return Code ' + $response.statuscode)
         return $ODSresponseCode
@@ -512,14 +513,15 @@ if ($skipNonLog -eq 1 -or $skipfile -eq 1){<#NOOP#>}else{
             $DCEcontentType = 'application/json'
             $DCEauthType = 'Bearer'
             try {
-                $DCEpostResult = Invoke-RestMethod -Uri $DCE -Method $DCEmethod -ContentType $DCEcontentType `
+                $response = Invoke-WebRequest -Uri $DCE -Method $DCEmethod -ContentType $DCEcontentType `
                 -Authentication $DCEauthType -Token $SstrToken -Body $cleanedUnsafeJson -Verbose # -Headers $headers -Infile $logPath
-                $DCEpostStatus = $DCEpostResult.statusCode
-                Write-Output ("DCE POST Result: " + $DCEpostStatus + " " + $DCEpostResult.content + " " + $DCEpostResult)
+                $DCEpostStatus = $response.statusCode
+                Write-Output ("DCE POST Result: " + $DCEpostStatus + " . " + $response.content + " . " + $response)
             } catch {
-                Write-Error "DCE Post Status Code: : $_.Exception.Message"
+                Write-Error ("DCE Post Status Code:" + $_.Exception.Response.StatusCode.value__)
                 $DCEpostStatus = $_.Exception.Message
-                Write-Error "DCE Post Status Description: $_.Exception.Response.StatusDescription"
+                Write-Error ("DCE Post Status Description:" + $_.Exception.Response.StatusDescription)
+                Write-Error ("DCE Failure Message: " + $DCEpostStatus)
             }
         }
     }
