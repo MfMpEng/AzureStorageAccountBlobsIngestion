@@ -13,7 +13,7 @@
     .NOTES
         Title:          Azure Sentinel Blob Log Lobber - Process Json Blobs via Storage Queue Messages
         Language:       PowerShell
-        Version:        1.5.0
+        Version:        1.5.1
         Author(s):      MF@CF,Sreedhar Ande, Travis Roberts, kozhemyak
         Last Modified:  2025-03-14
         Comment:        Migration to Log Ingestion API - Deprecation notice: The Azure Monitor HTTP Data Collector API
@@ -501,11 +501,11 @@ if ($BlobName -notmatch "\.log$|\.gzip$") {$skipfile = 1;Write-Error "Blob does 
     }
 }
 # LogFile read/validate/process
-if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $blobContent -ne $(Get-Content $logPath))
-{$skipfile = 1;Write-Error "Blob write to local cache went corrupt or missing."}else{
+if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $blobContent.length -eq 0 <#-or $blobContent -ne $(Get-Content $logPath)#>)
+{$skipfile = 1;Write-Error "Blob write to local cache went corrupt, empty, or missing."}else{
     # Validate/Process/Submit json primitive
-    if ($(Get-Content $logPath).length -eq 0)
-    { $skipfile = 1; Write-Error "Log contents empty" } else { #TODO could inject a retry getblob here
+    # if ($(Get-Content $logPath).length -eq 0)
+    # { $skipfile = 1; Write-Error "Log contents empty" } else { #TODO could inject a retry getblob here
         # LogFile read (switch for gzip/plaintext json)
         if ($BlobName -like "*gzip") {
             $logsFromFile = Expand-JsonGzip $logPath -Verbose;
@@ -526,7 +526,7 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $blobContent -ne $(Get-Content
             $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey -tenantId $tenantId -Body $renamedJsonPrimative
             Write-Host ("LI/DCR/DCE POST Result: " + $LIpostResult)
         }
-    }
+    # }
 }
 # LogFile/Blob/QueueMessage Cleanup
 if ($LApostResult -eq 200 -or $DCEpostStatus -eq 204 <#-or $skipfile -eq 1#>) {
