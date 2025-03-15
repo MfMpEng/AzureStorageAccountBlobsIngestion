@@ -529,8 +529,8 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
         if ($BlobName -like "*gzip") {
             $logsFromFile = Expand-JsonGzip $logPath -Verbose;
         } else {
-            # $logsFromFile = Get-Content -Path $logPath -Raw
-            $logsFromFile = $blobContent
+            $logsFromFile = Get-Content -Path $logPath -Raw
+            # $logsFromFile = $blobContent
             $logsFromFile = [System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($logsFromFile))
         }
         $cleanedUnsafeJson = Format-DirtyJson $logsfromfile
@@ -543,7 +543,7 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
             $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName -Verbose
             Write-Host ("LA Post Result: " + $LApostResult)
             #TODO: Create Chunking wrapper for LI API
-            $kustoCompliantJson = Format-DirtyKustoJson $renamedJsonPrimative
+            $kustoCompliantJson = Format-DirtyKustoJson $renamedJsonPrimative #$cleanedUnsafeJson
             $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
             -tenantId $tenantId -Body $kustoCompliantJson
             Write-Host ("LI/DCR/DCE POST Result: " + $LIpostResult)
