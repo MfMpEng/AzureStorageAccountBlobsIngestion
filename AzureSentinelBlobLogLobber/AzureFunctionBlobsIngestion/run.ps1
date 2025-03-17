@@ -62,7 +62,7 @@ $DCETable = $DCEbaseURI.split('/')[-1]
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
 $logPath = [System.IO.Path]::Combine($env:TEMP, $BlobName)
 $skipfile = $false;
-$actorIP = curl ifconfig.me/ip
+$actorIP = Invoke-RestMethod -Uri "https://ifconfig.me/ip"
 ##### Fn Defs
 # Code Wrapper
 Function Write-LogHeader() {
