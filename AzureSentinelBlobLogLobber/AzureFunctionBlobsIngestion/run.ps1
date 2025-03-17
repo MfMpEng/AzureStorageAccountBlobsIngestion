@@ -546,7 +546,7 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
             Write-Host ("LA Post Result: " + $LApostResult)
             #TODO: Create Chunking wrapper for LI API
             # $kustoCompliantJson = Format-DirtyKustoJson $renamedJsonPrimative #$cleanedUnsafeJson
-            $directJsonTranslation = $logsFromFile|ConvertTo-Json
+            $directJsonTranslation = $logsFromFile|ConvertFrom-Json|ConvertTo-Json
             Write-Host ("Updated Json Props to be dispatched`n" + $directJsonTranslation)
             $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
             -tenantId $tenantId -Body $directJsonTranslation
