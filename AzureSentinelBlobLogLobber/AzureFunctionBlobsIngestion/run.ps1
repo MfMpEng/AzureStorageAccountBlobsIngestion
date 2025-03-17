@@ -471,7 +471,7 @@ Function Format-DirtyKustoJson ([string]$jsonString) {
     # }
     $jsonString = $jsonString -replace "[\\]", {
     switch ($args) {
-    "\" { "\\" }
+    "\\" { "\\\\" }
     }
     }
     return $jsonString
