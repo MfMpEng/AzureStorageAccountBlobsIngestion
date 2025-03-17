@@ -548,7 +548,7 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
             Write-Host ("Updated Json Props to be dispatched`n" + $kustoCompliantJson)
             $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
             -tenantId $tenantId -Body $kustoCompliantJson
-            Write-Host ("Current FN acting outbound IPv4" + $actorIP)
+            Write-Host ("Current FN acting outbound IPv4: " + $actorIP)
             Write-Host ("LI/DCR/DCE POST Result: " + $LIpostResult)
         }
     # }
