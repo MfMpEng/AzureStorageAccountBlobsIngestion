@@ -27,6 +27,7 @@
         - Convert DCR/LI function into a chunking wrapper like the LA Data Collector
         - ARM template the direct-endpoint DCR and an EntApp Registration
         - parameterize json param name hashtable
+
 #>
 # Input bindings are passed in via param block.
 param( [object]$QueueItem, [object]$TriggerMetadata )
@@ -457,23 +458,23 @@ Function Format-DirtyJson ([string]$jsonString) {
     return $jsonString
 }
 # Output Sanitizer
-function Format-KustoJson {
-    param (
-        [string]$json
-    )
-    $obj = $json | ConvertFrom-Json
-    $sanitizedObj = @{}
-    foreach ($key in $obj.PSObject.Properties.Name) {
-        $value = $obj.$key
-        if ($value -is [string]) {
-            $sanitizedObj[$key] = $value -replace '"', '\"'
-        }
-        else {
-            $sanitizedObj[$key] = $value
-        }
+Function Format-DirtyKustoJson ([string]$jsonString) {
+    # $jsonString = $jsonString -replace '[\[\]/&<>]', {
+    #     switch ($args) {
+    #         "/" { "\/" }
+    #         "&" { "\&" }
+    #         "<" { "\<" }
+    #         ">" { "\>" }
+    #         "/" { "\/" }
+    #         #'"' { '\"' }
+    #     }
+    # }
+    $jsonString = $jsonString -replace "[\\]", {
+    switch ($args) {
+    "\" { "\\" }
     }
-    $sanitizedJson = $sanitizedObj | ConvertTo-Json -Compress
-    return $sanitizedJson
+    }
+    return $jsonString
 }
 # Input Expander
 Function Expand-JsonGzip([string]$logpath) {
@@ -542,11 +543,10 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
             $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName -Verbose
             Write-Host ("LA Post Result: " + $LApostResult)
             #TODO: Create Chunking wrapper for LI API
-            # $kustoCompliantJson = Format-KustoJson $renamedJsonPrimative #$cleanedUnsafeJson
-            # $kustoCompliantJson = ConvertTo-Json $renamedJsonPrimative
-            Write-Host ("Updated Kusto-Json to be dispatched`n" + $renamedJsonPrimative)
+            $kustoCompliantJson = Format-DirtyKustoJson $renamedJsonPrimative #$cleanedUnsafeJson
+            Write-Host ("Updated Json Props to be dispatched`n" + $kustoCompliantJson)
             $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
-            -tenantId $tenantId -Body $renamedJsonPrimative
+            -tenantId $tenantId -Body $kustoCompliantJson
             Write-Host ("LI/DCR/DCE POST Result: " + $LIpostResult)
         }
     # }
