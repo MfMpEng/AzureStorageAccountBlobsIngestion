@@ -62,6 +62,7 @@ $DCETable = $DCEbaseURI.split('/')[-1]
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
 $logPath = [System.IO.Path]::Combine($env:TEMP, $BlobName)
 $skipfile = $false;
+$actorIP = curl ifconfig.me/ip
 ##### Fn Defs
 # Code Wrapper
 Function Write-LogHeader() {
@@ -547,6 +548,7 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
             Write-Host ("Updated Json Props to be dispatched`n" + $kustoCompliantJson)
             $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
             -tenantId $tenantId -Body $kustoCompliantJson
+            Write-Host ("Current FN acting outbound IPv4" + $actorIP)
             Write-Host ("LI/DCR/DCE POST Result: " + $LIpostResult)
         }
     # }
@@ -555,8 +557,8 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
 if ($LApostResult -eq 200 -or $LIpostResult -eq 204 <#-or $skipfile -eq 1#>) {
     # Skip deletion of empty/irrelevant blobs
     if (!$skipfile) {
-        if ($LApostResult) {Write-Host ("Storage Account Blobs ingested into Azure Monitoring API to Workspace Table $LATableName")}
-        if ($LIpostResult) { Write-Host ("Storage Account Blobs ingested into Azure Log Ingestion API to Workspace Table $DCETable") }
+        if ($LApostResult -eq 200) {Write-Host ("Storage Account Blobs ingested into Azure Monitoring API to Workspace Table $LATableName")}
+        if ($LIpostResult -eq 204) { Write-Host ("Storage Account Blobs ingested into Azure Log Ingestion API to Workspace Table $DCETable") }
         Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Verbose
         Remove-Item $logPath
     }else{
