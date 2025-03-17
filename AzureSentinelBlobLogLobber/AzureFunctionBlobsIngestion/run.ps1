@@ -174,9 +174,10 @@ Function Submit-LogIngestion ( [string]$DCE, [string]$DCEEntAppId, [string]$DCEE
         $DCEpostStatus = $response.statusCode
     }
     catch {
-        Write-Error ("LI/DCE Submit Status Code:" + $_.Exception.Type + " " + $_.Exception.ScriptStackTrace)
+        # Write-Error ("LI/DCE Submit Status Code:" + $_.Exception.Type + " " + $_.Exception.ScriptStackTrace)
         $DCEpostStatus = $_.Exception.Message
-        Write-Error ("LI/DCE Submit Status Description:" + $_.Exception.CategoryInfo)
+        Write-Error $_.Exception
+        # Write-Error ("LI/DCE Submit Status Description:" + $_.Exception.CategoryInfo)
     }
     return $DCEpostStatus
 }
@@ -544,10 +545,11 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
             $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName -Verbose
             Write-Host ("LA Post Result: " + $LApostResult)
             #TODO: Create Chunking wrapper for LI API
-            $kustoCompliantJson = Format-DirtyKustoJson $renamedJsonPrimative #$cleanedUnsafeJson
-            Write-Host ("Updated Json Props to be dispatched`n" + $kustoCompliantJson)
+            # $kustoCompliantJson = Format-DirtyKustoJson $renamedJsonPrimative #$cleanedUnsafeJson
+            $directJsonTranslation = $logsFromFile|ConvertTo-Json
+            Write-Host ("Updated Json Props to be dispatched`n" + $directJsonTranslation)
             $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
-            -tenantId $tenantId -Body $kustoCompliantJson
+            -tenantId $tenantId -Body $directJsonTranslation
             Write-Host ("Current FN acting outbound IPv4: " + $actorIP)
             Write-Host ("LI/DCR/DCE POST Result: " + $LIpostResult)
         }
