@@ -539,11 +539,12 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
             $renamedJsonPrimative = Rename-JsonProperties -rawJson $cleanedUnsafeJson -Verbose
             # For use when log source only has prop values, no names
             # $json = Convert-LogLineToJson($log)
-            Write-Host ("Updated Json Props to be dispatched`n" + $renamedJsonPrimative)
+            # Write-Host ("Updated Json Props to be dispatched`n" + $renamedJsonPrimative)
             $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName -Verbose
             Write-Host ("LA Post Result: " + $LApostResult)
             #TODO: Create Chunking wrapper for LI API
             $kustoCompliantJson = Format-DirtyKustoJson $renamedJsonPrimative #$cleanedUnsafeJson
+            Write-Host ("Updated Kusto-Json to be dispatched`n" + $kustoCompliantJson)
             $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
             -tenantId $tenantId -Body $kustoCompliantJson
             Write-Host ("LI/DCR/DCE POST Result: " + $LIpostResult)
