@@ -546,7 +546,7 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
             # $kustoCompliantJson = ConvertTo-Json $renamedJsonPrimative
             Write-Host ("Updated Kusto-Json to be dispatched`n" + $renamedJsonPrimative)
             $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
-            -tenantId $tenantId -Body $kustoCompliantJson
+            -tenantId $tenantId -Body $renamedJsonPrimative
             Write-Host ("LI/DCR/DCE POST Result: " + $LIpostResult)
         }
     # }
