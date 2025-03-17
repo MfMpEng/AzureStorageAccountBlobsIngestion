@@ -457,24 +457,23 @@ Function Format-DirtyJson ([string]$jsonString) {
     return $jsonString
 }
 # Output Sanitizer
-function Format-ndJson ([string]$ndjson) {
-    $sanitizedLines = @()
-    $ndjson -split "`n" | ForEach-Object {
-        $obj = $_ | ConvertFrom-Json
-        $sanitizedObj = @{}
-        foreach ($key in $obj.PSObject.Properties.Name) {
-            $value = $obj.$key
-            if ($value -is [string]) {
-                $sanitizedObj[$key] = $value -replace '"', '\"'
-            }
-            else {
-                $sanitizedObj[$key] = $value
-            }
+function Format-KustoJson {
+    param (
+        [string]$json
+    )
+    $obj = $json | ConvertFrom-Json
+    $sanitizedObj = @{}
+    foreach ($key in $obj.PSObject.Properties.Name) {
+        $value = $obj.$key
+        if ($value -is [string]) {
+            $sanitizedObj[$key] = $value -replace '"', '\"'
         }
-        $sanitizedLine = $sanitizedObj | ConvertTo-Json -Compress
-        $sanitizedLines += $sanitizedLine
+        else {
+            $sanitizedObj[$key] = $value
+        }
     }
-    return $sanitizedLines -join "`n"
+    $sanitizedJson = $sanitizedObj | ConvertTo-Json -Compress
+    return $sanitizedJson
 }
 # Input Expander
 Function Expand-JsonGzip([string]$logpath) {
@@ -543,7 +542,7 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
             $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName -Verbose
             Write-Host ("LA Post Result: " + $LApostResult)
             #TODO: Create Chunking wrapper for LI API
-            $kustoCompliantJson = Format-ndJson $renamedJsonPrimative #$cleanedUnsafeJson
+            $kustoCompliantJson = Format-KustoJson $renamedJsonPrimative #$cleanedUnsafeJson
             Write-Host ("Updated Kusto-Json to be dispatched`n" + $kustoCompliantJson)
             $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
             -tenantId $tenantId -Body $kustoCompliantJson
