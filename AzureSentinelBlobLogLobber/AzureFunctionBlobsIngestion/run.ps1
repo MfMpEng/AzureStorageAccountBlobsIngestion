@@ -59,36 +59,36 @@ $QueuePOP = $TriggerMetadata.PopReceipt
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
 $logPath = [System.IO.Path]::Combine($env:TEMP, $BlobName)
 $skipfile = $false;
-$actorIP = Invoke-RestMethod -Uri "https://ifconfig.me/ip"
+# $actorIP = Invoke-RestMethod -Uri "https://ifconfig.me/ip"
 $DCEbaseURI = $DCE.split('?')[0]
 $DCETable = $DCEbaseURI.split('/')[-1]
 ##### Fn Defs
 # Code Wrapper
 Function Write-LogHeader() {
     # Write out the queue message and metadata to the information log.
-    Write-Host ("######################################################################################")
+    # Write-Host ("######################################################################################")
     Write-Host ("######################### BEGIN NEW TRANSACTION ######################################")
     Write-Host ("################# $BlobName ################")
-    Write-Host ("######################################################################################")
-    Write-Host ("Dequeue count               :" + $TriggerMetadata.DequeueCount)
-    Write-Host ("PowerShell queue trigger function processed work item:" + $QueueItem)
-    Write-Host ("Log Analytics URI           :" + $LAURI)
-    Write-Host ("Log Ingestion URI           :" + $DCE)
-    Write-Host ("This Fn App Host outbound IP: " + $actorIP)
-    Write-Host ("Queue Message ID            :" + $QueueId)
-    Write-Host ("Queue Message Pop receipt   :" + $QueuePOP)
-    Write-Host ("Current Directory           :" + $(Get-Location))
-    Write-Host ("Queue item expiration time  :" + $TriggerMetadata.ExpirationTime)
-    Write-Host ("Queue item insertion time   :" + $TriggerMetadata.InsertionTime)
-    Write-Host ("Queue item next visible time:" + $TriggerMetadata.NextVisibleTime)
-    Write-Host ("$evtTime Queue Reported new item - BlobName:  $BlobName")
+    # Write-Host ("######################################################################################")
+    # Write-Host ("Dequeue count               :" + $TriggerMetadata.DequeueCount)
+    # Write-Host ("PowerShell queue trigger function processed work item:" + $QueueItem)
+    # Write-Host ("Log Analytics URI           :" + $LAURI)
+    Write-Host ("Log Ingestion URI           :`n" + $DCE)
+    # Write-Host ("This Fn App Host outbound IP: " + $actorIP)
+    # Write-Host ("Queue Message ID            :" + $QueueId)
+    # Write-Host ("Queue Message Pop receipt   :" + $QueuePOP)
+    # Write-Host ("Current Directory           :" + $(Get-Location))
+    # Write-Host ("Queue item expiration time  :" + $TriggerMetadata.ExpirationTime)
+    # Write-Host ("Queue item insertion time   :" + $TriggerMetadata.InsertionTime)
+    # Write-Host ("Queue item next visible time:" + $TriggerMetadata.NextVisibleTime)
+    # Write-Host ("$evtTime Queue Reported new item - BlobName:  $BlobName")
 }
 # Code Wrapper
 Function Write-LogFooter() {
-    Write-Host ("######################################################################################")
+    # Write-Host ("######################################################################################")
     Write-Host ("############################ END TRANSACTION #########################################")
     Write-Host ("################# $BlobName ################")
-    Write-Host ("######################################################################################")
+    # Write-Host ("######################################################################################")
 }
 # Input Cleaner
 function Remove-AzStorageQueueMessage([string]$StorageAccountName, [string]$queueName, [string]$messageId, [string]$popReceipt, [string]$connectionString) {
@@ -107,7 +107,7 @@ function Remove-AzStorageQueueMessage([string]$StorageAccountName, [string]$queu
             "x-ms-date"     = $rfc1123date;
         }
         try {
-                $response = Invoke-WebRequest -Uri $uri -Method $method -Headers $headers -ContentType $ContentType -Body $Body -Verbose
+                $response = Invoke-WebRequest -Uri $uri -Method $method -Headers $headers -ContentType $ContentType -Body $Body
                 $QdelResp = $response.statuscode
                 Write-Host -Message ('Storage Queue Delete Result ' + $QdelResp)
         } catch {
@@ -127,7 +127,7 @@ function Remove-AzStorageQueueMessage([string]$StorageAccountName, [string]$queu
     $uri = "https://$StorageAccountName.queue.core.windows.net" + $resource + $param
     # call the wrapper for Build-Headers
     $resp = Submit-StgAcctDelReq -StgAcctName $StorageAccountName -queueName $queueName `
-    -SharedKey $storageAccountKey -Body $resource+$param -uri $uri -Verbose
+    -SharedKey $storageAccountKey -Body $resource+$param -uri $uri
     return $resp
 }
 # Output Constructor (Write-LAlogFile(Submit-LAlogFile), Remove-AzStorageQueueMessage)
@@ -242,7 +242,7 @@ Function Write-LAlogFile {
             "time-generated-field" = $Iso8601ZventTime;
         }
         try {
-            $response = Invoke-WebRequest -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $body -Verbose
+            $response = Invoke-WebRequest -Uri $uri -Method $method -ContentType $ContentType -Headers $headers -Body $body
             $ODSresponseCode = $response.StatusCode
         }catch{
             Write-Error ("LA/ODS Status Code:" + $_.Exception.Type + " " + $_.Exception.ScriptStackTrace)
@@ -251,7 +251,7 @@ Function Write-LAlogFile {
         }
         return $ODSresponseCode
     }
-    $returnCode = Submit-LApostRequest -CustomerID $CustomerID -SharedKey $SharedKey -Body $logdata -Type $type -Verbose
+    $returnCode = Submit-LApostRequest -CustomerID $CustomerID -SharedKey $SharedKey -Body $logdata -Type $type
     return $returnCode
 }
 # Output Wrapper(Write-LAlogFile)
@@ -265,7 +265,7 @@ Function Submit-ChunkLAdata ([string]$corejson, [string]$customLogName) {
             $tempdata += $record
             $tempDataSize += ($record | ConvertTo-Json -depth 4).Length
             if ($tempDataSize -gt 25MB) {
-                $ret = Write-LAlogFile -dateTime $evtTime -type $customLogName -logdata $tempdata -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
+                $ret = Write-LAlogFile -dateTime $evtTime -type $customLogName -logdata $tempdata -CustomerID $workspaceId -SharedKey $workspaceKey
                 Write-Host "Sending dataset = $TempDataSize"
                 $tempdata = $null
                 $tempdata = @()
@@ -273,11 +273,11 @@ Function Submit-ChunkLAdata ([string]$corejson, [string]$customLogName) {
             }
         }
         Write-Host "Sending left over data = $Tempdatasize"
-        $ret = Write-LAlogFile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
+        $ret = Write-LAlogFile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey
     }
     Else {
         #Send to Log A as is
-        $ret = Write-LAlogFile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey -Verbose
+        $ret = Write-LAlogFile -dateTime $evtTime -type $customLogName -logdata $corejson -CustomerID $workspaceId -SharedKey $workspaceKey
     }
     return $ret
 }
@@ -547,7 +547,7 @@ if ($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-
 # LogFile get (check/skip last, concurrency, etc)
 if ($BlobName -notmatch "\.log$|\.gzip$") {$skipfile = 1;Write-Error "Blob does not match expected format"}else{
     try {
-        Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force -Verbose
+        Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force
         Write-Host "Blob content downloaded to $logPath"
     } catch {
         $BlobGetResp = $_.Exception.Message
@@ -573,11 +573,11 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
         $cleanedUnsafeJson = Format-DirtyJson $UTF8fromFile
         $validJson = $cleanedUnsafeJson | ConvertFrom-Json
         if (!$validJson){$skipfile =1;Write-Error "Contents of $logfile not valid json"}else{
-            $renamedJsonPrimative = Rename-JsonProperties -rawJson $cleanedUnsafeJson -Verbose
+            $renamedJsonPrimative = Rename-JsonProperties -rawJson $cleanedUnsafeJson
             # For use when log source only has prop values, no names
             # $json = Convert-LogLineToJson($log)
             # Write-Host ("Updated Json Props to be dispatched`n" + $renamedJsonPrimative)
-            $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName -Verbose
+            $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName
             Write-Host ("LA Post Result: " + $LApostResult)
             #TODO: Create Chunking wrapper for LI API
             # $directJsonTranslation = $UTF8fromFile|ConvertFrom-Json|ConvertTo-Json
@@ -585,7 +585,7 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
             # $escapedJson = Format-DirtyKustoJson $kustoCompliantJson
             Write-Host ("Updated Json Props to be dispatched`n" + $kustoCompliantJson)
             $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
-            -tenantId $tenantId -Body $kustoCompliantJson
+            -tenantId $tenantId -Body $kustoCompliantJson -Verbose
             Write-Host ("LI/DCR/DCE POST Result: " + $LIpostResult)
         }
     # }
@@ -596,12 +596,12 @@ if ($LApostResult -eq 200 -or $LIpostResult -eq 204 <#-or $skipfile -eq 1#>) {
     if (!$skipfile) {
         if ($LApostResult -eq 200) {Write-Host ("Storage Account Blobs ingested into Azure Monitoring API to Workspace Table $LATableName")}
         if ($LIpostResult -eq 204) { Write-Host ("Storage Account Blobs ingested into Azure Log Ingestion API to Workspace Table $DCETable") }
-        Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Verbose
+        Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath
         Remove-Item $logPath
     }else{
         # We polled a queue message about a blob that was missing or invalid. Could just nix queue message to prevent retry.
         $queueDelResponse = Remove-AzStorageQueueMessage -StorageAccountName $StorageAccountName -queueName $StgQueueName `
-        -messageId $QueueID -popReceipt $QueuePOP -connectionString $AzureWebJobsStorage -Verbose
+        -messageId $QueueID -popReceipt $QueuePOP -connectionString $AzureWebJobsStorage
         Write-Host ("Queue Message Deletion Status: " + $queueDelResponse)
     }
 }
