@@ -282,11 +282,11 @@ Function Submit-ChunkLAdata ([string]$corejson, [string]$customLogName) {
     #Wrapper for Write-LAlogFile to chunk based on REST API limit spec. Max 30Mb, this cuts at 25.
     $tempdata = @()
     $tempDataSize = 0
-    if ((($corejson |  ConvertTo-Json -depth 4).Length) -gt 25MB) {
+    if ((($corejson |  ConvertTo-Json -depth 2).Length) -gt 25MB) {
 		Write-Host -Message ("Upload is over 25MB, needs to be split")
         foreach ($record in $corejson) {
             $tempdata += $record
-            $tempDataSize += ($record | ConvertTo-Json -depth 4).Length
+            $tempDataSize += ($record | ConvertTo-Json -depth 2).Length
             if ($tempDataSize -gt 25MB) {
                 $ret = Write-LAlogFile -dateTime $evtTime -type $customLogName -logdata $tempdata -CustomerID $workspaceId -SharedKey $workspaceKey
                 Write-Host "Sending dataset = $TempDataSize"
@@ -462,7 +462,7 @@ Function Rename-JsonProperties ([string]$rawJson ) {
         }
     }
     # Convert the updated data back to JSON
-    $updatedJson = $modJson | ConvertTo-Json -depth 4
+    $updatedJson = $modJson | ConvertTo-Json -depth 2
     return $updatedJson
 }
 # Input Sanitizer
@@ -537,7 +537,7 @@ function Remove-InvalidProperties {
     # Call the recursive function
     Remove-InvalidProps -Object $jsonObject
     # Convert the cleaned object back to a JSON string
-    return $jsonObject | ConvertTo-Json -Depth 3
+    return $jsonObject | ConvertTo-Json -Depth 2 -Compress
 }
 # Input Expander
 Function Expand-JsonGzip([string]$logpath) {
