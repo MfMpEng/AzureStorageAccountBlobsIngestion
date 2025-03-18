@@ -509,7 +509,7 @@ function Remove-InvalidProperties {
     # Call the recursive function
     Remove-InvalidProps -Object $jsonObject
     # Convert the cleaned object back to a JSON string
-    return $jsonObject | ConvertTo-Json -Depth 100
+    return $jsonObject | ConvertTo-Json -Depth 3
 }
 # Input Expander
 Function Expand-JsonGzip([string]$logpath) {
@@ -566,9 +566,9 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
         } else {
             $logsFromFile = Get-Content -Path $logPath -Raw
             # $logsFromFile = $blobContent
-            $logsFromFile = [System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($logsFromFile))
+            $UTF8fromFile = [System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($logsFromFile))
         }
-        $cleanedUnsafeJson = Format-DirtyJson $logsfromfile
+        $cleanedUnsafeJson = Format-DirtyJson $UTF8fromFile
         $validJson = $cleanedUnsafeJson | ConvertFrom-Json
         if (!$validJson){$skipfile =1;Write-Error "Contents of $logfile not valid json"}else{
             $renamedJsonPrimative = Rename-JsonProperties -rawJson $cleanedUnsafeJson -Verbose
@@ -578,8 +578,8 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
             $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName -Verbose
             Write-Host ("LA Post Result: " + $LApostResult)
             #TODO: Create Chunking wrapper for LI API
-            $directJsonTranslation = $logsFromFile|ConvertFrom-Json|ConvertTo-Json
-            $kustoCompliantJson = Remove-InvalidProperties $directJsonTranslation
+            # $directJsonTranslation = $UTF8fromFile|ConvertFrom-Json|ConvertTo-Json
+            $kustoCompliantJson = Remove-InvalidProperties $cleanedUnsafeJson
             Write-Host ("Updated Json Props to be dispatched`n" + $kustoCompliantJson)
             $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
             -tenantId $tenantId -Body $kustoCompliantJson
