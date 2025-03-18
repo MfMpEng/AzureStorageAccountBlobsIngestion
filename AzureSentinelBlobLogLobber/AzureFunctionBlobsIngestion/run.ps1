@@ -194,7 +194,7 @@ Function Submit-LogIngestion ( [string]$DCE, [string]$DCEEntAppId, [string]$DCEE
     $DCEauthType = 'Bearer'
     try {
         $response = Invoke-WebRequest -Uri $DCE -Method $DCEmethod -ContentType $DCEcontentType `
-            -Authentication $DCEauthType -Token $SstrToken -Body $Body -Verbose # -Headers $headers -Infile $logPath
+            -Authentication $DCEauthType -Token $SstrToken -Body $Body
         $DCEpostStatus = $response.statusCode
     }
     catch {
@@ -512,6 +512,9 @@ function Remove-InvalidProperties {
     $jsonObject = $JsonString | ConvertFrom-Json
     #add required field before trimming illegal columns
     $jsonObject | Add-Member -MemberType NoteProperty -Name "TimeGenerated" -Value $jsonObject."@timestamp" -Force
+    #fix req_headers json array
+    $req_headers = $jsonObject.req_headers|ConvertFrom-Json
+    $jsonObject.req_headers = $req_headers
     # Recursive function to remove invalid properties
     function Remove-InvalidProps {
         param (
@@ -519,7 +522,7 @@ function Remove-InvalidProperties {
             [PSCustomObject]$Object
         )
         # Get the keys to remove
-        $keysToRemove = $Object.PSObject.Properties.Name | Where-Object { $_ -match '^_' -or $_ -eq 'time' -or $_ -eq '@timestamp' -or $_ -eq 'content-type' }
+        $keysToRemove = $Object.PSObject.Properties.Name | Where-Object { $_ -match '^_' -or $_ -match '^@' -or $_ -eq 'time' -or $_ -eq 'content-type' }
         # Remove the keys
         foreach ($key in $keysToRemove) {
             $Object.PSObject.Properties.Remove($key)
@@ -534,7 +537,7 @@ function Remove-InvalidProperties {
     # Call the recursive function
     Remove-InvalidProps -Object $jsonObject
     # Convert the cleaned object back to a JSON string
-    return $jsonObject | ConvertTo-Json -Depth 3 -verbose
+    return $jsonObject | ConvertTo-Json -Depth 3
 }
 # Input Expander
 Function Expand-JsonGzip([string]$logpath) {
@@ -609,17 +612,17 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
             # $escapedJson = Format-DirtyKustoJson $kustoCompliantJson
             Write-Host ("Updated Json Props to be dispatched`n" + $kustoCompliantJson)
             $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
-            -tenantId $tenantId -Body $kustoCompliantJson -Verbose
+            -tenantId $tenantId -Body $kustoCompliantJson
             Write-Host ("LI/DCR/DCE POST Result: " + $LIpostResult)
         }
     # }
 }
 # LogFile/Blob/QueueMessage Cleanup
-if ($LApostResult -eq 200 -or $LIpostResult -eq 204 <#-or $skipfile -eq 1#>) {
+if ($LApostResult -eq 200 -or ($LIpostResult -ge 200 -and $LIpostResult -lt 300) <#-or $skipfile -eq 1#>) {
     # Skip deletion of empty/irrelevant blobs
     if (!$skipfile) {
         if ($LApostResult -eq 200) {Write-Host ("Storage Account Blobs ingested into Azure Monitoring API to Workspace Table $LATableName")}
-        if ($LIpostResult -eq 204) { Write-Host ("Storage Account Blobs ingested into Azure Log Ingestion API to Workspace Table $DCETable") }
+        if ($LIpostResult -ge 200 -and $LIpostResult -lt 300) { Write-Host ("Storage Account Blobs ingested into Azure Log Ingestion API to Workspace Table $DCETable") }
         Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath
         Remove-Item $logPath
     }else{
