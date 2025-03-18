@@ -63,6 +63,22 @@ $skipfile = $false;
 $DCEbaseURI = $DCE.split('?')[0]
 $DCETable = $DCEbaseURI.split('/')[-1]
 ##### Fn Defs
+# App Insights Authenticator
+Function Set-AppInsightsID {
+    # Create a DefaultAzureCredential
+    $credential = [Azure.Identity.DefaultAzureCredential]::new()
+    # Create a new OpenTelemetry tracer provider and set the credential
+    $tracerProvider = [OpenTelemetry.Sdk]::CreateTracerProviderBuilder()
+    $tracerProvider.AddAzureMonitorTraceExporter([OpenTelemetry.Exporter.AzureMonitorTraceExporterOptions]::new($credential))
+    $tracerProvider.Build()
+    # Create a new OpenTelemetry meter provider and set the credential
+    $metricsProvider = [OpenTelemetry.Sdk]::CreateMeterProviderBuilder()
+    $metricsProvider.AddAzureMonitorMetricExporter([OpenTelemetry.Exporter.AzureMonitorMetricExporterOptions]::new($credential))
+    $metricsProvider.Build()
+    # Create a new logger factory and add the OpenTelemetry logger provider with the credential
+    $loggerFactory = [Microsoft.Extensions.Logging.LoggerFactory]::Create([Microsoft.Extensions.Logging.LoggerFactoryOptions]::new())
+    $loggerFactory.AddOpenTelemetry([OpenTelemetry.Logging.OpenTelemetryLoggerOptions]::new($credential))
+}
 # Code Wrapper
 Function Write-LogHeader() {
     # Write out the queue message and metadata to the information log.
@@ -538,6 +554,7 @@ Function Expand-JsonGzip([string]$logpath) {
     return $encodedJson
 }
 ##### Execution
+Set-AppInsightsID
 Write-LogHeader
 # Validate output destination is expected (old OMS/LA API)
 if ($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-Z\.]+)$') {
