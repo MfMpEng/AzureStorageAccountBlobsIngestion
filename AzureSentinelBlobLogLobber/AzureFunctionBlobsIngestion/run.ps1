@@ -27,12 +27,10 @@
         - Convert DCR/LI function into a chunking wrapper like the LA Data Collector
         - ARM template the direct-endpoint DCR and an EntApp Registration
         - parameterize json param name hashtable
-
 #>
 # Input bindings are passed in via param block.
 param( [object]$QueueItem, [object]$TriggerMetadata )
 # $VerbosePreference = "Continue"
-
 # $QueueItem = [PSObject]::AsPSObject($QueueItem)
 # $TriggerMetadata = [PSObject]::AsPSObject($TriggerMetadata)
 #####Env Vars
@@ -64,7 +62,6 @@ $skipfile = $false;
 $actorIP = Invoke-RestMethod -Uri "https://ifconfig.me/ip"
 $DCEbaseURI = $DCE.split('?')[0]
 $DCETable = $DCEbaseURI.split('/')[-1]
-
 ##### Fn Defs
 # Code Wrapper
 Function Write-LogHeader() {
@@ -480,6 +477,40 @@ Function Format-DirtyKustoJson ([string]$jsonString) {
     }
     return $jsonString
 }
+# output sanitizer
+function Remove-InvalidProperties {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$JsonString
+    )
+    # Convert JSON string to a PowerShell object
+    $jsonObject = $JsonString | ConvertFrom-Json
+    #add required field before trimming illegal columns
+    $jsonObject | Add-Member -MemberType NoteProperty -Name "TimeGenerated" -Value $jsonObject."@timestamp" -Force
+    # Recursive function to remove invalid properties
+    Function Remove-InvalidProps {
+        param (
+            [Parameter(Mandatory = $true)]
+            [hashtable]$Object
+        )
+        # Get the keys to remove
+        $keysToRemove = $Object.Keys | Where-Object { $_ -match '^_' -or $_ -eq 'time' -or $_ -eq '@timestamp' }
+        # Remove the keys
+        foreach ($key in $keysToRemove) {
+            $Object.Remove($key)
+        }
+        # Recursively process nested objects
+        foreach ($key in $Object.Keys) {
+            if ($Object[$key] -is [hashtable]) {
+                Remove-InvalidProps -Object $Object[$key]
+            }
+        }
+    }
+    # Call the recursive function
+    Remove-InvalidProps -Object $jsonObject
+    # Convert the cleaned object back to a JSON string
+    return $jsonObject | ConvertTo-Json -Depth 100
+}
 # Input Expander
 Function Expand-JsonGzip([string]$logpath) {
     # Define the path to the decompressed .json file
@@ -548,7 +579,7 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
             Write-Host ("LA Post Result: " + $LApostResult)
             #TODO: Create Chunking wrapper for LI API
             $directJsonTranslation = $logsFromFile|ConvertFrom-Json|ConvertTo-Json
-            $kustoCompliantJson = Format-DirtyKustoJson $directJsonTranslation
+            $kustoCompliantJson = Remove-InvalidProperties $directJsonTranslation
             Write-Host ("Updated Json Props to be dispatched`n" + $kustoCompliantJson)
             $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
             -tenantId $tenantId -Body $kustoCompliantJson
