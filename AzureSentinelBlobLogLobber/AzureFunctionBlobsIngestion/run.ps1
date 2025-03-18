@@ -488,28 +488,28 @@ function Remove-InvalidProperties {
     #add required field before trimming illegal columns
     $jsonObject | Add-Member -MemberType NoteProperty -Name "TimeGenerated" -Value $jsonObject."@timestamp" -Force
     # Recursive function to remove invalid properties
-    Function Remove-InvalidProps {
+    function Remove-InvalidProps {
         param (
             [Parameter(Mandatory = $true)]
-            [hashtable]$Object
+            [PSCustomObject]$Object
         )
         # Get the keys to remove
-        $keysToRemove = $Object.Keys | Where-Object { $_ -match '^_' -or $_ -eq 'time' -or $_ -eq '@timestamp' }
+        $keysToRemove = $Object.PSObject.Properties.Name | Where-Object { $_ -match '^_' -or $_ -eq 'time' -or $_ -eq '@timestamp' }
         # Remove the keys
         foreach ($key in $keysToRemove) {
-            $Object.Remove($key)
+            $Object.PSObject.Properties.Remove($key)
         }
         # Recursively process nested objects
-        foreach ($key in $Object.Keys) {
-            if ($Object[$key] -is [hashtable]) {
-                Remove-InvalidProps -Object $Object[$key]
+        foreach ($key in $Object.PSObject.Properties.Name) {
+            if ($Object.$key -is [PSCustomObject]) {
+                Remove-InvalidProps -Object $Object.$key
             }
         }
     }
     # Call the recursive function
     Remove-InvalidProps -Object $jsonObject
     # Convert the cleaned object back to a JSON string
-    return $jsonObject | ConvertTo-Json -Depth 3
+    return $jsonObject | ConvertTo-Json -Depth 3 -verbose
 }
 # Input Expander
 Function Expand-JsonGzip([string]$logpath) {
@@ -579,7 +579,7 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
             Write-Host ("LA Post Result: " + $LApostResult)
             #TODO: Create Chunking wrapper for LI API
             # $directJsonTranslation = $UTF8fromFile|ConvertFrom-Json|ConvertTo-Json
-            $kustoCompliantJson = Remove-InvalidProperties $cleanedUnsafeJson
+            $kustoCompliantJson = Remove-InvalidProperties -jsonString $cleanedUnsafeJson
             Write-Host ("Updated Json Props to be dispatched`n" + $kustoCompliantJson)
             $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
             -tenantId $tenantId -Body $kustoCompliantJson
