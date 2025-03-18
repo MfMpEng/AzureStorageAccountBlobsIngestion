@@ -7,5 +7,6 @@
 	'Az.Storage'  = '8.2.0'
 	'Az.KeyVault' = '6.3.1'
 	'AzureFunctions.PowerShell.OpenTelemetry.SDK' = '1.0.0'
+	'Az.Resources' = '7.9.0'
 	#'Az'          = '13.*'
 }
