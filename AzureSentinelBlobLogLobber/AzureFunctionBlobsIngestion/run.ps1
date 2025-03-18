@@ -580,9 +580,10 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
             #TODO: Create Chunking wrapper for LI API
             # $directJsonTranslation = $UTF8fromFile|ConvertFrom-Json|ConvertTo-Json
             $kustoCompliantJson = Remove-InvalidProperties -jsonString $cleanedUnsafeJson
-            Write-Host ("Updated Json Props to be dispatched`n" + $kustoCompliantJson)
+            $escapedJson = Format-DirtyKustoJson $kustoCompliantJson
+            Write-Host ("Updated Json Props to be dispatched`n" + $escapedJson)
             $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
-            -tenantId $tenantId -Body $kustoCompliantJson
+            -tenantId $tenantId -Body $escapedJson
             Write-Host ("Current FN acting outbound IPv4: " + $actorIP)
             Write-Host ("LI/DCR/DCE POST Result: " + $LIpostResult)
         }
