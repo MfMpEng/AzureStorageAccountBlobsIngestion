@@ -9,5 +9,5 @@
 	'Az.Resources' = '7.9.0'
 	'Az.ManagedServiceIdentity' = '1.3.0'
 	'AzureFunctions.PowerShell.OpenTelemetry.SDK' = '1.0.0'
-	'Az'          = '13.3.*'
+	'Az'          = '13.*'
 }
