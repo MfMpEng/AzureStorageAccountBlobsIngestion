@@ -32,15 +32,16 @@
 # Input bindings are passed in via param block.
 param( [object]$QueueItem, [object]$TriggerMetadata )
 # $VerbosePreference = "Continue"
+
 # $QueueItem = [PSObject]::AsPSObject($QueueItem)
 # $TriggerMetadata = [PSObject]::AsPSObject($TriggerMetadata)
 #####Env Vars
+$LAURI = $env:LAURI
 $AzureWebJobsStorage = $env:AzureWebJobsStorage
-$WorkspaceId = $env:WorkspaceId
-$Workspacekey = $env:LogAnalyticsWorkspaceKey
 $LATableName = $env:LATableName
 $StgQueueName = $env:StgQueueName
-$LAURI = $env:LAURI
+$WorkspaceId = $env:WorkspaceId
+$Workspacekey = $env:LogAnalyticsWorkspaceKey
 # TODO: ARM with DCR/DCE and EntApp
 $DCE = $env:DCE
 $tenantId = $env:tenantId
@@ -57,12 +58,13 @@ $evtTime = $QueueArr.eventTime
 $BlobName = $QueueArr.subject.split('/')[-1]
 $QueueID = $TriggerMetadata.Id
 $QueuePOP = $TriggerMetadata.PopReceipt
-$DCEbaseURI = $DCE.split('?')[0]
-$DCETable = $DCEbaseURI.split('/')[-1]
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
 $logPath = [System.IO.Path]::Combine($env:TEMP, $BlobName)
 $skipfile = $false;
 $actorIP = Invoke-RestMethod -Uri "https://ifconfig.me/ip"
+$DCEbaseURI = $DCE.split('?')[0]
+$DCETable = $DCEbaseURI.split('/')[-1]
+
 ##### Fn Defs
 # Code Wrapper
 Function Write-LogHeader() {
@@ -473,7 +475,7 @@ Function Format-DirtyKustoJson ([string]$jsonString) {
     # }
     $jsonString = $jsonString -replace "[\\]", {
     switch ($args) {
-    "\" { "\\" }
+    "\" { "\\\\" }
     }
     }
     return $jsonString
@@ -512,7 +514,7 @@ if ($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-
 # LogFile get (check/skip last, concurrency, etc)
 if ($BlobName -notmatch "\.log$|\.gzip$") {$skipfile = 1;Write-Error "Blob does not match expected format"}else{
     try {
-        $blobContent = Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force -Verbose
+        Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force -Verbose
         Write-Host "Blob content downloaded to $logPath"
     } catch {
         $BlobGetResp = $_.Exception.Message
@@ -545,11 +547,11 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
             $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName -Verbose
             Write-Host ("LA Post Result: " + $LApostResult)
             #TODO: Create Chunking wrapper for LI API
-            # $kustoCompliantJson = Format-DirtyKustoJson $renamedJsonPrimative #$cleanedUnsafeJson
             $directJsonTranslation = $logsFromFile|ConvertFrom-Json|ConvertTo-Json
-            Write-Host ("Updated Json Props to be dispatched`n" + $directJsonTranslation)
+            $kustoCompliantJson = Format-DirtyKustoJson $directJsonTranslation
+            Write-Host ("Updated Json Props to be dispatched`n" + $kustoCompliantJson)
             $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
-            -tenantId $tenantId -Body $directJsonTranslation
+            -tenantId $tenantId -Body $kustoCompliantJson
             Write-Host ("Current FN acting outbound IPv4: " + $actorIP)
             Write-Host ("LI/DCR/DCE POST Result: " + $LIpostResult)
         }
