@@ -561,7 +561,7 @@ Function Expand-JsonGzip([string]$logpath) {
     return $encodedJson
 }
 ##### Execution
-$appInsightsID = Set-AppInsightsID
+# $appInsightsID = Set-AppInsightsID
 Write-LogHeader
 # Validate output destination is expected (old OMS/LA API)
 if ($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-Z\.]+)$') {
