@@ -372,10 +372,11 @@ Function Rename-JsonProperties ([string]$rawJson ) {
         "_visitor_id"               = "F5_visitor_id_CF";
         "@timestamp"                = "F5_timestamp_CF";
         "action"                    = "action_CF";
+        "time"                      = "time_CF";
         "api_endpoint"              = "api_endpoint_CF";
+        "app"                       = "app_CF";
         "app_firewall_name"         = "app_firewall_name_CF";
         "app_type"                  = "app_type_CF";
-        "app"                       = "app_CF";
         "as_number"                 = "as_number_CF";
         "as_org"                    = "as_org_CF";
         "asn"                       = "asn_CF";
@@ -391,17 +392,18 @@ Function Rename-JsonProperties ([string]$rawJson ) {
         "detections"                = "detections_CF";
         "device_type"               = "device_type_CF";
         "domain"                    = "domain_CF";
+        "dst"                       = "dst_CF";
         "dst_instance"              = "dst_instance_CF";
         "dst_ip"                    = "dst_ip_CF";
         "dst_port"                  = "dst_port_CF";
         "dst_site"                  = "dst_site_CF";
-        "dst"                       = "dst_CF";
         "enforcement_mode"          = "enforcement_mode_CF";
         "excluded_threat_campaigns" = "excluded_threat_campaigns_CF";
         "hostname"                  = "hostname_CF";
         "http_version"              = "http_version_CF";
         "is_new_dcid"               = "is_new_dcid_CF";
         "is_truncated_field"        = "is_truncated_field_CF";
+        "ja4_tls_fingerprint"       = "ja4_tls_fingerprint_CF";
         "kubernetes"                = "kubernetes_CF";
         "latitude"                  = "latitude_CF";
         "longitude"                 = "longitude_CF";
@@ -413,15 +415,16 @@ Function Rename-JsonProperties ([string]$rawJson ) {
         "original_headers"          = "original_headers_CF";
         "original_path"             = "original_path_CF";
         "path"                      = "path_CF";
+        "recommended_action"        = "recommended_action_CF";
         "region"                    = "region_CF";
-        "req_headers_size"          = "req_headers_size_CF";
         "req_headers"               = "req_headers_CF";
+        "req_headers_size"          = "req_headers_size_CF";
         "req_id"                    = "req_id_CF";
         "req_params"                = "req_params_CF";
         "req_path"                  = "req_path_CF";
         "req_size"                  = "req_size_CF";
-        "rsp_code_class"            = "rsp_code_class_CF";
         "rsp_code"                  = "rsp_code_CF";
+        "rsp_code_class"            = "rsp_code_class_CF";
         "rsp_size"                  = "rsp_size_CF";
         "sec_event_name"            = "sec_event_name_CF";
         "sec_event_type"            = "sec_event_type_CF";
@@ -429,19 +432,18 @@ Function Rename-JsonProperties ([string]$rawJson ) {
         "signatures"                = "signatures_CF";
         "site"                      = "site_CF";
         "sni"                       = "sni_CF";
+        "src"                       = "src_CF";
         "src_instance"              = "src_instance_CF";
         "src_ip"                    = "src_ip_CF";
         "src_port"                  = "src_port_CF";
         "src_site"                  = "src_site_CF";
-        "src"                       = "src_CF";
         "stream"                    = "stream_CF";
         "tag"                       = "tag_CF";
         "tenant"                    = "tenant_CF";
         "threat_campaigns"          = "threat_campaigns_CF";
-        "time"                      = "time_CF";
         "tls_fingerprint"           = "tls_fingerprint_CF";
-        "user_agent"                = "user_agent_CF";
         "user"                      = "user_CF";
+        "user_agent"                = "user_agent_CF";
         "vh_name"                   = "vh_name_CF";
         "vhost_id"                  = "vhost_id_CF";
         "violation_details"         = "violation_details_CF";
@@ -449,7 +451,6 @@ Function Rename-JsonProperties ([string]$rawJson ) {
         "violations"                = "violations_CF";
         "waf_mode"                  = "waf_mode_CF";
         "x_forwarded_for"           = "x_forwarded_for_CF";
-        #"TimeGenerated"             = "TimeGenerated";
     }
     # Rename the properties
     foreach ($jsonProp in $modJson) {
@@ -458,6 +459,9 @@ Function Rename-JsonProperties ([string]$rawJson ) {
                 $jsonProp | Add-Member -MemberType NoteProperty `
                     -Name $logToTablePropNames[$oldName] -Value ($jsonProp | Select-Object -ExpandProperty $oldName)
                 $jsonProp.PSObject.Properties.Remove($oldName)
+            }else{
+                # chaff missing fields. Preparation for fault-intolerant DCR Ingestion.
+                $jsonProp | Add-Member -MemberType NoteProperty -Name $logToTablePropNames[$oldName] -Value ("")
             }
         }
     }
@@ -516,7 +520,7 @@ function Remove-InvalidProperties {
     $req_headers = $jsonObject.req_headers|ConvertFrom-Json
     $jsonObject.req_headers = $req_headers
     try{
-        $original_Headers = $jsonObject.original_headers | ConvertFrom-Json
+        $original_Headers = $jsonObject.original_headers | ConvertFrom-Json -ErrorAction Stop
         $jsonObject.original_Headers = $original_Headers
     }catch{
         Write-Warning "Original_Headers not present in this blob"
