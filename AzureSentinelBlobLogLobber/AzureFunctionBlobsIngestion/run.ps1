@@ -515,6 +515,12 @@ function Remove-InvalidProperties {
     #fix req_headers json array
     $req_headers = $jsonObject.req_headers|ConvertFrom-Json
     $jsonObject.req_headers = $req_headers
+    try{
+        $original_Headers = $jsonObject.original_headers | ConvertFrom-Json
+        $jsonObject.original_Headers = $original_Headers
+    }catch{
+        Write-Warning "Original_Headers not present in this blob"
+    }
     # Recursive function to remove invalid properties
     function Remove-InvalidProps {
         param (

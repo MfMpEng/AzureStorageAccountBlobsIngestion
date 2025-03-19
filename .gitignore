@@ -1,8 +1,10 @@
-__azurite_db_blob__.json
-__azurite_db_blob_extent__.json
 .gitignore
 .vscode/extensions.json
 .vscode/launch.json
 .vscode/settings.json
 .vscode/tasks.json
+__azurite_db_blob__.json
+__azurite_db_blob_extent__.json
+__azurite_db_queue__.json
+__azurite_db_queue_extent__.json
 local.settings.json
