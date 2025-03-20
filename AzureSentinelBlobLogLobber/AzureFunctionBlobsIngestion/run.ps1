@@ -361,168 +361,183 @@ Function Submit-ChunkLAdata ([string]$corejson, [string]$customLogName) {
 #     $logJson += "}]";
 #     return $logJson
 # }
-# input Parser
-Function Rename-JsonProperties ([string]$rawJson ) {
-    # Convert the raw JSON primitive to a PowerShell object
+# Input Parser
+Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$rawJson) {
     $modJson = $rawJson | ConvertFrom-Json
     $modJson | Add-Member -MemberType NoteProperty -Name "TimeGenerated" -Value $modJson."@timestamp" -Force
-    # TODO: param-ize custom prop name list
+    # Fix escaped JSON subarrays
+    try {
+    $req_headers = $modJson.req_headers | ConvertFrom-Json
+    $modJson.req_headers = $req_headers
+    }catch{
+        Write-Warning "req_headers not present or invalid in this blob"
+    }
+    try {
+        $original_Headers = $modJson.original_headers | ConvertTo-Json -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        $modJson.original_Headers = $original_Headers
+    }
+    catch {
+        Write-Warning "original_headers not present or invalid in this blob"
+    }
+    # Custom property name list
     [hashtable]$logToTablePropNames = [ordered]@{
-        "_id"                       = "F5_id_CF";
-        "_visitor_id"               = "F5_visitor_id_CF";
-        "@timestamp"                = "F5_timestamp_CF";
-        "action"                    = "action_CF";
-        "time"                      = "time_CF";
-        "api_endpoint"              = "api_endpoint_CF";
-        "app"                       = "app_CF";
-        "app_firewall_name"         = "app_firewall_name_CF";
-        "app_type"                  = "app_type_CF";
-        "as_number"                 = "as_number_CF";
-        "as_org"                    = "as_org_CF";
-        "asn"                       = "asn_CF";
-        "attack_types"              = "attack_types_CF";
-        "authority"                 = "authority_CF";
-        "bot_info"                  = "bot_info_CF";
-        "browser_type"              = "browser_type_CF";
-        "calculated_action"         = "calculated_action_CF";
-        "city"                      = "city_CF";
-        "cluster_name"              = "cluster_name_CF";
-        "country"                   = "country_CF";
-        "dcid"                      = "dcid_CF";
-        "detections"                = "detections_CF";
-        "device_type"               = "device_type_CF";
-        "domain"                    = "domain_CF";
-        "dst"                       = "dst_CF";
-        "dst_instance"              = "dst_instance_CF";
-        "dst_ip"                    = "dst_ip_CF";
-        "dst_port"                  = "dst_port_CF";
-        "dst_site"                  = "dst_site_CF";
-        "enforcement_mode"          = "enforcement_mode_CF";
-        "excluded_threat_campaigns" = "excluded_threat_campaigns_CF";
-        "hostname"                  = "hostname_CF";
-        "http_version"              = "http_version_CF";
-        "is_new_dcid"               = "is_new_dcid_CF";
-        "is_truncated_field"        = "is_truncated_field_CF";
-        "ja4_tls_fingerprint"       = "ja4_tls_fingerprint_CF";
-        "kubernetes"                = "kubernetes_CF";
-        "latitude"                  = "latitude_CF";
-        "longitude"                 = "longitude_CF";
-        "messageid"                 = "messageid_CF";
-        "method"                    = "method_CF";
-        "namespace"                 = "namespace_CF";
-        "network"                   = "network_CF";
-        "no_active_detections"      = "no_active_detections_CF";
-        "original_headers"          = "original_headers_CF";
-        "original_path"             = "original_path_CF";
-        "path"                      = "path_CF";
-        "recommended_action"        = "recommended_action_CF";
-        "region"                    = "region_CF";
-        "req_headers"               = "req_headers_CF";
-        "req_headers_size"          = "req_headers_size_CF";
-        "req_id"                    = "req_id_CF";
-        "req_params"                = "req_params_CF";
-        "req_path"                  = "req_path_CF";
-        "req_size"                  = "req_size_CF";
-        "rsp_code"                  = "rsp_code_CF";
-        "rsp_code_class"            = "rsp_code_class_CF";
-        "rsp_size"                  = "rsp_size_CF";
-        "sec_event_name"            = "sec_event_name_CF";
-        "sec_event_type"            = "sec_event_type_CF";
-        "severity"                  = "severity_CF";
-        "signatures"                = "signatures_CF";
-        "site"                      = "site_CF";
-        "sni"                       = "sni_CF";
-        "src"                       = "src_CF";
-        "src_instance"              = "src_instance_CF";
-        "src_ip"                    = "src_ip_CF";
-        "src_port"                  = "src_port_CF";
-        "src_site"                  = "src_site_CF";
-        "stream"                    = "stream_CF";
-        "tag"                       = "tag_CF";
-        "tenant"                    = "tenant_CF";
-        "threat_campaigns"          = "threat_campaigns_CF";
-        "tls_fingerprint"           = "tls_fingerprint_CF";
-        "user"                      = "user_CF";
-        "user_agent"                = "user_agent_CF";
-        "vh_name"                   = "vh_name_CF";
-        "vhost_id"                  = "vhost_id_CF";
-        "violation_details"         = "violation_details_CF";
-        "violation_rating"          = "violation_rating_CF";
-        "violations"                = "violations_CF";
-        "waf_mode"                  = "waf_mode_CF";
-        "x_forwarded_for"           = "x_forwarded_for_CF";
+        "_id"                       = "F5_id";
+        "_visitor_id"               = "F5_visitor_id";
+        "@timestamp"                = "F5_timestamp";
+        "time"                      = "F5_time";
+        "app_type"                  = "F5_app_type";
+        "dst"                       = "F5_dst";
+        "dst_instance"              = "F5_dst_instance";
+        "dst_site"                  = "F5_dst_site";
+        "no_active_detections"      = "F5_no_active_detections";
+        "req_params"                = "F5_req_params";
+        "action"                    = "F5_action";
+        "api_endpoint"              = "F5_api_endpoint";
+        "app"                       = "F5_app";
+        "app_firewall_name"         = "F5_app_firewall_name";
+        "as_number"                 = "F5_as_number";
+        "as_org"                    = "F5_as_org";
+        "asn"                       = "F5_asn";
+        "attack_types"              = "F5_attack_types";
+        "authority"                 = "F5_authority";
+        "bot_info"                  = "F5_bot_info";
+        "browser_type"              = "F5_browser_type";
+        "calculated_action"         = "F5_calculated_action";
+        "city"                      = "F5_city";
+        "cluster_name"              = "F5_cluster_name";
+        "country"                   = "F5_country";
+        "dcid"                      = "F5_dcid";
+        "detections"                = "F5_detections";
+        "device_type"               = "F5_device_type";
+        "domain"                    = "F5_domain";
+        "dst_ip"                    = "F5_dst_ip";
+        "dst_port"                  = "F5_dst_port";
+        "enforcement_mode"          = "F5_enforcement_mode";
+        "excluded_threat_campaigns" = "F5_excluded_threat_campaigns";
+        "hostname"                  = "F5_hostname";
+        "http_version"              = "F5_http_version";
+        "is_new_dcid"               = "F5_is_new_dcid";
+        "is_truncated_field"        = "F5_is_truncated_field";
+        "ja4_tls_fingerprint"       = "F5_ja4_tls_fingerprint";
+        "kubernetes"                = "F5_kubernetes";
+        "latitude"                  = "F5_latitude";
+        "longitude"                 = "F5_longitude";
+        "messageid"                 = "F5_messageid";
+        "method"                    = "F5_method";
+        "namespace"                 = "F5_namespace";
+        "network"                   = "F5_network";
+        "original_headers"          = "F5_original_headers";
+        "original_path"             = "F5_original_path";
+        "path"                      = "F5_path";
+        "recommended_action"        = "F5_recommended_action";
+        "region"                    = "F5_region";
+        "req_headers"               = "F5_req_headers";
+        "req_headers_size"          = "F5_req_headers_size";
+        "req_id"                    = "F5_req_id";
+        "req_path"                  = "F5_req_path";
+        "req_size"                  = "F5_req_size";
+        "rsp_code"                  = "F5_rsp_code";
+        "rsp_code_class"            = "F5_rsp_code_class";
+        "rsp_size"                  = "F5_rsp_size";
+        "sec_event_name"            = "F5_sec_event_name";
+        "sec_event_type"            = "F5_sec_event_type";
+        "severity"                  = "F5_severity";
+        "signatures"                = "F5_signatures";
+        "site"                      = "F5_site";
+        "sni"                       = "F5_sni";
+        "src"                       = "F5_src";
+        "src_instance"              = "F5_src_instance";
+        "src_ip"                    = "F5_src_ip";
+        "src_port"                  = "F5_src_port";
+        "src_site"                  = "F5_src_site";
+        "stream"                    = "F5_stream";
+        "tag"                       = "F5_tag";
+        "tenant"                    = "F5_tenant";
+        "threat_campaigns"          = "F5_threat_campaigns";
+        "tls_fingerprint"           = "F5_tls_fingerprint";
+        "user"                      = "F5_user";
+        "user_agent"                = "F5_user_agent";
+        "vh_name"                   = "F5_vh_name";
+        "vhost_id"                  = "F5_vhost_id";
+        "violation_details"         = "F5_violation_details";
+        "violation_rating"          = "F5_violation_rating";
+        "violations"                = "F5_violations";
+        "waf_mode"                  = "F5_waf_mode";
+        "x_forwarded_for"           = "F5_x_forwarded_for";
     }
     # Rename the properties
-    foreach ($jsonProp in $modJson) {
-        foreach ($oldName in $logToTablePropNames.Keys) {
-            if ($jsonProp | Select-Object -ExpandProperty $oldName.Trim() -ErrorAction SilentlyContinue) {
-                $jsonProp | Add-Member -MemberType NoteProperty `
-                    -Name $logToTablePropNames[$oldName] -Value ($jsonProp | Select-Object -ExpandProperty $oldName)
-                $jsonProp.PSObject.Properties.Remove($oldName)
-            }else{
-                # chaff missing fields. Preparation for fault-intolerant DCR Ingestion.
-                $jsonProp | Add-Member -MemberType NoteProperty -Name $logToTablePropNames[$oldName] -Value ("")
+    foreach ($jsonProp in $modJson.PSObject.Properties) {
+        $oldName = $jsonProp.Name
+        $newName = $logToTablePropNames[$oldName]
+        if ($logToTablePropNames.ContainsKey($oldName)) {
+            $modJson | Add-Member -MemberType NoteProperty -Name $newName -Value $jsonProp.Value -Force
+            $modJson.PSObject.Properties.Remove($oldName)
+        }else {
+            Write-Eror ("Found extra field from this blob " + $oldName) -ErrorAction Continue
+            # $modJson | Add-Member -MemberType NoteProperty -Name $newName -Value "" -Force
+        }
+    }
+    # Sort the properties of the JSON object
+    Function New-SortedJson  ([Parameter(Mandatory = $true)][psobject]$obj) {
+        $queue = @($obj)
+        while ($queue.Count -gt 0) {
+            $current = $queue
+            $queue = $queue[1..$queue.Count]
+            if ($current -is [System.Collections.Hashtable] -or $current -is [System.Management.Automation.PSObject]) {
+                $sortedObj = @{}
+                foreach ($key in ($current.PSObject.Properties.Name | Sort-Object)) {
+                    $sortedObj[$key] = $current.$key
+                    $queue += $current.$key
+                }
+                $current.PSObject.Properties.Clear()
+                foreach ($key in $sortedObj.Keys) {
+                    $current.PSObject.Properties.Add([PSNoteProperty]::new($key, $sortedObj[$key]))
+                }
+            }
+            elseif ($current -is [System.Collections.ArrayList]) {
+                foreach ($item in $current) {
+                    $queue += $item
+                }
+            }
+        }
+        return $obj
+    }
+    # Add any missing props from dictionary
+    Function Add-MissingProperties {
+        param (
+            [Parameter(Mandatory = $true)]
+            [psobject]$modJson,
+            [hashtable]$logToTablePropNames
+        )
+        # Iterate through the keys in logToTablePropNames
+        foreach ($key in $logToTablePropNames.Keys) {
+            # Check if the key is not present in modJson
+            if (-not $modJson.PSObject.Properties.Name.Contains($key)) {
+                # Add the missing property with an empty string value
+                $modJson | Add-Member -MemberType NoteProperty -Name $key -Value ""
             }
         }
     }
-    # Convert the updated data back to JSON
-    $updatedJson = $modJson | ConvertTo-Json -depth 2
-    return $updatedJson
+    $missingProps = Add-MissingProperties -logToTablePropNames $logToTablePropNames -modJson $modJson
+    $sortedJson = New-SortedJson -obj $missingProps
+    # Convert the sorted object back to JSON
+    $sortedJsonString = $sortedJson | ConvertTo-Json -Depth 2
+    return $sortedJsonString
 }
-# Input Sanitizer
-Function Format-DirtyJson ([string]$jsonString) {
-    $jsonString = $jsonString -replace '[/&<>]', {
-        switch ($args) {
-            "/" { "&#x2F;" }
-            "&" { "&amp;" }
-            "<" { "&lt;" }
-            ">" { "&gt;" }
-            #'"' { '\"' }
-        }
-    }
-    # $jsonString = $jsonString -replace "[']", {
-    # switch ($args) {
-    # "'" { "&#x27;" }
-    # }
-    # }
-    return $jsonString
-}
-# Output Sanitizer
-Function Format-DirtyKustoJson ([string]$jsonString) {
-    # $jsonString = $jsonString -replace '[\[\]/&<>]', {
-    #     switch ($args) {
-    #         "/" { "\/" }
-    #         "&" { "\&" }
-    #         "<" { "\<" }
-    #         ">" { "\>" }
-    #         "/" { "\/" }
-    #         #'"' { '\"' }
-    #     }
-    # }
-    $jsonString = $jsonString -replace "[\\]", {
-    switch ($args) {
-    "\" { "\\\\" }
-    }
-    }
-    return $jsonString
-}
-# output sanitizer
-function Remove-InvalidProperties {
-    param (
-        [Parameter(Mandatory = $true)]
-        [string]$JsonString
-    )
+# Input Parser
+Function Remove-InvalidProperties ([Parameter(Mandatory = $true)][string]$JsonString) {
     # Convert JSON string to a PowerShell object
     $jsonObject = $JsonString | ConvertFrom-Json
-    #add required field before trimming illegal columns
+    #add required field
     $jsonObject | Add-Member -MemberType NoteProperty -Name "TimeGenerated" -Value $jsonObject."@timestamp" -Force
-    #fix req_headers json array
-    $req_headers = $jsonObject.req_headers|ConvertFrom-Json
+    #fix json subarrays
+    $req_headers = $jsonObject.req_headers | ConvertFrom-Json
     $jsonObject.req_headers = $req_headers
-    try{
+    try {
         $original_Headers = $jsonObject.original_headers | ConvertFrom-Json -ErrorAction Stop
         $jsonObject.original_Headers = $original_Headers
-    }catch{
+    }
+    catch {
         Write-Warning "Original_Headers not present in this blob"
     }
     # Recursive function to remove invalid properties
@@ -549,6 +564,43 @@ function Remove-InvalidProperties {
     # Convert the cleaned object back to a JSON string
     return $jsonObject | ConvertTo-Json -Depth 2 -Compress
 }
+# Input Sanitizer
+Function Format-DirtyJson ([string]$jsonString) {
+    $jsonString = $jsonString -replace '[/&<>]', {
+        switch ($args) {
+            "/" { "&#x2F;" }
+            "&" { "&amp;" }
+            "<" { "&lt;" }
+            ">" { "&gt;" }
+            #'"' { '\"' }
+        }
+    }
+    # $jsonString = $jsonString -replace "[']", {
+    # switch ($args) {
+    # "'" { "&#x27;" }
+    # }
+    # }
+    return $jsonString
+}
+# # Output Sanitizer
+# Function Format-DirtyKustoJson ([string]$jsonString) {
+#     # $jsonString = $jsonString -replace '[\[\]/&<>]', {
+#     #     switch ($args) {
+#     #         "/" { "\/" }
+#     #         "&" { "\&" }
+#     #         "<" { "\<" }
+#     #         ">" { "\>" }
+#     #         "/" { "\/" }
+#     #         #'"' { '\"' }
+#     #     }
+#     # }
+#     $jsonString = $jsonString -replace "[\\]", {
+#     switch ($args) {
+#     "\" { "\\\\" }
+#     }
+#     }
+#     return $jsonString
+# }
 # Input Expander
 Function Expand-JsonGzip([string]$logpath) {
     # Define the path to the decompressed .json file
@@ -574,6 +626,7 @@ Function Expand-JsonGzip([string]$logpath) {
     return $encodedJson
 }
 ##### Execution
+# Get/Set Identity for authenticated App Insights trace filtering. May not be necessary if expected env vars are set?
 # $appInsightsID = Set-AppInsightsID
 Write-LogHeader
 # Validate output destination is expected (old OMS/LA API)
@@ -582,7 +635,7 @@ if ($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-
     Exit
 }
 # LogFile get (check/skip last, concurrency, etc)
-if ($BlobName -notmatch "\.log$|\.gzip$") {$skipfile = 1;Write-Error "Blob does not match expected format"}else{
+if ($BlobName -notmatch "\.log$|\.gzip$") {$skipfile = 1;Write-Error "Blob does not match expected file type"}else{
     try {
         Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force
         Write-Host "Blob content downloaded to $logPath"
@@ -595,37 +648,32 @@ if ($BlobName -notmatch "\.log$|\.gzip$") {$skipfile = 1;Write-Error "Blob does 
 }
 # LogFile read/validate/process
 if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length -eq 0 <#-or $blobContent -ne $(Get-Content $logPath)#>)
-{$skipfile = 1;Write-Error "Blob write to local cache went corrupt, empty, or missing."}else{
-    # Validate/Process/Submit json primitive
-    # if ($(Get-Content $logPath).length -eq 0)
-    # { $skipfile = 1; Write-Error "Log contents empty" } else { #TODO could inject a retry getblob here
-        # LogFile read (switch for gzip/plaintext json)
-        if ($BlobName -like "*gzip") {
-            $logsFromFile = Expand-JsonGzip $logPath -Verbose;
-        } else {
-            $logsFromFile = Get-Content -Path $logPath -Raw
-            # $logsFromFile = $blobContent
-            $UTF8fromFile = [System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($logsFromFile))
-        }
-        $cleanedUnsafeJson = Format-DirtyJson $UTF8fromFile
-        $validJson = $cleanedUnsafeJson | ConvertFrom-Json
-        if (!$validJson){$skipfile =1;Write-Error "Contents of $logfile not valid json"}else{
-            $renamedJsonPrimative = Rename-JsonProperties -rawJson $cleanedUnsafeJson
-            # For use when log source only has prop values, no names
-            # $json = Convert-LogLineToJson($log)
-            # Write-Host ("Updated Json Props to be dispatched`n" + $renamedJsonPrimative)
-            $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName
-            Write-Host ("LA Post Result: " + $LApostResult)
-            #TODO: Create Chunking wrapper for LI API
-            # $directJsonTranslation = $UTF8fromFile|ConvertFrom-Json|ConvertTo-Json
-            $kustoCompliantJson = Remove-InvalidProperties -jsonString $cleanedUnsafeJson
-            # $escapedJson = Format-DirtyKustoJson $kustoCompliantJson
-            Write-Host ("Updated Json Props to be dispatched`n" + $kustoCompliantJson)
-            $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
-            -tenantId $tenantId -Body $kustoCompliantJson
-            Write-Host ("LI/DCR/DCE POST Result: " + $LIpostResult)
-        }
-    # }
+{ <##TODO could inject a retry getblob here#>$skipfile = 1; Write-Error "Blob write to local cache went corrupt, empty, or missing." }else {
+    # LogFile read (switch for gzip/plaintext json)
+    if ($BlobName -like "*gzip") {
+        $logsFromFile = Expand-JsonGzip $logPath -Verbose;
+    } else {
+        $logsFromFile = Get-Content -Path $logPath -Raw
+        $UTF8fromFile = [System.Text.Encoding]::UTF8.GetString([System.Text.Encoding]::UTF8.GetBytes($logsFromFile))
+    }
+    $cleanedUnsafeJson = Format-DirtyJson $UTF8fromFile
+    $validJson = $cleanedUnsafeJson | ConvertFrom-Json
+    if (!$validJson){$skipfile =1;Write-Error "Contents of $logfile not valid json"}else{
+        $renamedJsonPrimative = Build-ChaffedSortedJsonProps -rawJson $cleanedUnsafeJson
+        # For use when log source only has prop values, no names:
+        # $json = Convert-LogLineToJson($log)
+        Write-Host ("Updated Json Props to be dispatched`n`n" + $renamedJsonPrimative + "`n")
+        $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName
+        Write-Host ("LA Post Result: " + $LApostResult)
+        #TODO: Create chunking wrapper for LI API
+        # For use if receiver is tolerant, which LI is very much not:
+        # $kustoCompliantJson = Remove-InvalidProperties -jsonString $cleanedUnsafeJson
+        # Don't rewrite native functions:
+        # $escapedJson = Format-DirtyKustoJson $kustoCompliantJson
+        $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
+        -tenantId $tenantId -Body $renamedJsonPrimative
+        Write-Host ("LI-DCR/E POST Result: " + $LIpostResult)
+    }
 }
 # LogFile/Blob/QueueMessage Cleanup
 if ($LApostResult -eq 200 -or ($LIpostResult -ge 200 -and $LIpostResult -lt 300) <#-or $skipfile -eq 1#>) {
