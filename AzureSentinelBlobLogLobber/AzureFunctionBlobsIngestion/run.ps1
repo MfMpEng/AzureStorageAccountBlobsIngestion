@@ -473,7 +473,7 @@ Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$ra
             $modJson | Add-Member -MemberType NoteProperty -Name $newName -Value $jsonProp.Value -Force
             $modJson.PSObject.Properties.Remove($oldName)
         }else {
-            Write-Eror ("Found extra field from this blob " + $oldName) -ErrorAction Continue
+            Write-Error ("Found extra field from this blob " + $oldName) -ErrorAction Continue
             # $modJson | Add-Member -MemberType NoteProperty -Name $newName -Value "" -Force
         }
     }
