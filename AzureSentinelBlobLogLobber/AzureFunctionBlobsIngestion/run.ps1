@@ -364,27 +364,13 @@ Function Submit-ChunkLAdata ([string]$corejson, [string]$customLogName) {
 # Input Parser
 Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$rawJson) {
     $modJson = $rawJson | ConvertFrom-Json
-    $modJson | Add-Member -MemberType NoteProperty -Name "TimeGenerated" -Value $modJson."@timestamp" -Force
-    # Fix escaped JSON subarrays
-    try {
-    $req_headers = $modJson.req_headers | ConvertFrom-Json
-    $modJson.req_headers = $req_headers
-    }catch{
-        Write-Warning "req_headers not present or invalid in this blob"
-    }
-    try {
-        $original_Headers = $modJson.original_headers | ConvertTo-Json -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
-        $modJson.original_Headers = $original_Headers
-    }
-    catch {
-        Write-Warning "original_headers not present or invalid in this blob"
-    }
-    # Custom property name list
+    # Custom property name dictionary
     [hashtable]$logToTablePropNames = [ordered]@{
         "_id"                       = "F5_id";
         "_visitor_id"               = "F5_visitor_id";
         "@timestamp"                = "F5_timestamp";
         "time"                      = "F5_time";
+        "content-type"              = "F5_content-type";
         "app_type"                  = "F5_app_type";
         "dst"                       = "F5_dst";
         "dst_instance"              = "F5_dst_instance";
@@ -465,19 +451,8 @@ Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$ra
         "waf_mode"                  = "F5_waf_mode";
         "x_forwarded_for"           = "F5_x_forwarded_for";
     }
-    # Rename the properties
-    foreach ($jsonProp in $modJson.PSObject.Properties) {
-        $oldName = $jsonProp.Name
-        $newName = $logToTablePropNames[$oldName]
-        if ($logToTablePropNames.ContainsKey($oldName)) {
-            $modJson | Add-Member -MemberType NoteProperty -Name $newName -Value $jsonProp.Value -Force
-            $modJson.PSObject.Properties.Remove($oldName)
-        }else {
-            Write-Error ("Found extra field from this blob " + $oldName) -ErrorAction Continue
-            # $modJson | Add-Member -MemberType NoteProperty -Name $newName -Value "" -Force
-        }
-    }
-    # Sort the properties of the JSON object
+    ## Supporting Functions
+    # Sort JSON properties alphabetically
     Function New-SortedJson  ([Parameter(Mandatory = $true)][psobject]$obj) {
         $queue = @($obj)
         while ($queue.Count -gt 0) {
@@ -500,29 +475,58 @@ Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$ra
                 }
             }
         }
-        return $obj
+        return $current
     }
     # Add any missing props from dictionary
-    Function Add-MissingProperties {
-        param (
-            [Parameter(Mandatory = $true)]
-            [psobject]$modJson,
-            [hashtable]$logToTablePropNames
-        )
+    Function Add-MissingProperties ([Parameter(Mandatory = $true)][psobject]$modJson, [hashtable]$logToTablePropNames) {
+        # Debug statements to check input values
         # Iterate through the keys in logToTablePropNames
-        foreach ($key in $logToTablePropNames.Keys) {
+        foreach ($newName in $logToTablePropNames.Values) {
             # Check if the key is not present in modJson
-            if (-not $modJson.PSObject.Properties.Name.Contains($key)) {
+            if (-not $modJson.PSObject.Properties.Name.Contains($newName)) {
                 # Add the missing property with an empty string value
-                $modJson | Add-Member -MemberType NoteProperty -Name $key -Value ""
+                $modJson | Add-Member -MemberType NoteProperty -Name $newName -Value ""
             }
         }
+        return $modJson
     }
-    $missingProps = Add-MissingProperties -logToTablePropNames $logToTablePropNames -modJson $modJson
-    $sortedJson = New-SortedJson -obj $missingProps
+    # Execution
+    # Fix escaped JSON subarrays
+    try {
+        $req_headers = $modJson.req_headers | ConvertFrom-Json
+        $modJson.req_headers = $req_headers
+    }
+    catch {
+        Write-Warning "req_headers not present or invalid in this blob"
+    }
+    try {
+        $original_Headers = $modJson.original_headers | ConvertTo-Json -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        $modJson.original_Headers = $original_Headers
+    }
+    catch {
+        Write-Warning "original_headers not present or invalid in this blob"
+    }
+    # Rename the properties
+    foreach ($jsonProp in $modJson.PSObject.Properties) {
+        $oldName = $jsonProp.Name
+        $newName = $logToTablePropNames[$oldName]
+        if ($logToTablePropNames.ContainsKey($oldName)) {
+            $modJson | Add-Member -MemberType NoteProperty -Name $newName -Value $jsonProp.Value -Force
+            $modJson.PSObject.Properties.Remove($oldName)
+        }
+        else {
+            Write-Error ("Found extra field from this blob: " + $oldName) -ErrorAction Continue
+            # $modJson | Add-Member -MemberType NoteProperty -Name $newName -Value "" -Force
+        }
+    }
+    # Add required field
+    $modJson | Add-Member -MemberType NoteProperty -Name "TimeGenerated" -Value $modJson."F5_timestamp" -Force
+    # Sort the properties of the JSON object
+    $propAddedJson = Add-MissingProperties -modJson $modJson -logToTablePropNames $logToTablePropNames
+    $sortedjson = New-SortedJson -obj $propAddedJson
     # Convert the sorted object back to JSON
-    $sortedJsonString = $sortedJson | ConvertTo-Json -Depth 2
-    return $sortedJsonString
+    $chaffedJson = $sortedjson | ConvertTo-Json -Depth 2
+    return $chaffedJson
 }
 # Input Parser
 Function Remove-InvalidProperties ([Parameter(Mandatory = $true)][string]$JsonString) {
