@@ -483,6 +483,8 @@ Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$ra
         "duration_with_no_data_tx_delay"   = "F5_duration_with_no_data_tx_delay"
         "lb_port"                          = "F5_lb_port"
         "mtls"                             = "F5_mtls"
+        "bot_class"                        = "F5_bot_class"
+        "has_sec_event"                    = "F5_has_sec_event"
     }
     ## Supporting Functions
     # Sort JSON properties alphabetically
