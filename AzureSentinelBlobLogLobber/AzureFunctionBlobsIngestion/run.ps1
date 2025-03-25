@@ -532,14 +532,14 @@ Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$ra
         $modJson.req_headers = $req_headers
     }
     catch {
-        Write-Output "req_headers not present or invalid in this blob"
+        # Write-Debug "req_headers not present or invalid in this blob"
     }
     try {
         $original_Headers = $modJson.original_headers | ConvertTo-Json -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
         $modJson.original_Headers = $original_Headers
     }
     catch {
-        Write-Output "original_headers not present or invalid in this blob"
+        # Write-Debug "original_headers not present or invalid in this blob"
     }
     # Rename the properties
     foreach ($jsonProp in $modJson.PSObject.Properties) {
@@ -703,7 +703,7 @@ elseif ( !(Test-Path $logPath) -or $(Get-Content $logPath).length -eq 0 <#-or $b
         $renamedJsonPrimative = Build-ChaffedSortedJsonProps -rawJson $cleanedUnsafeJson
         # For use when log source only has prop values, no names:
         # $json = Convert-LogLineToJson($log)
-        $compressedJson = $renamedJsonPrimative|ConvertTo-Json -depth 2 -compress
+        # $compressedJson = $renamedJsonPrimative|ConvertTo-Json -depth 2 -compress
         Write-Host ("Updated Json Props to be dispatched`n`n" + $renamedJsonPrimative + "`n")
         try {
         $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName
@@ -719,7 +719,7 @@ elseif ( !(Test-Path $logPath) -or $(Get-Content $logPath).length -eq 0 <#-or $b
         # Don't rewrite native functions:
         # $escapedJson = Format-DirtyKustoJson $kustoCompliantJson
         $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
-        -tenantId $tenantId -Body $compressedJson
+        -tenantId $tenantId -Body $renamedJsonPrimative
         if ($LIpostResult -ne 200){
             Write-Host ("LI-DCR/E POST Result: " + $LIpostResult)
         }else {
