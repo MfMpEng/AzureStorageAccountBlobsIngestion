@@ -532,7 +532,7 @@ Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$ra
 Function Remove-InvalidProperties ([Parameter(Mandatory = $true)][string]$JsonString) {
     # Convert JSON string to a PowerShell object
     $jsonObject = $JsonString | ConvertFrom-Json
-    #add required field
+    # append required field
     $jsonObject | Add-Member -MemberType NoteProperty -Name "TimeGenerated" -Value $jsonObject."@timestamp" -Force
     #fix json subarrays
     $req_headers = $jsonObject.req_headers | ConvertFrom-Json
@@ -680,11 +680,11 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
     }
 }
 # LogFile/Blob/QueueMessage Cleanup
-if ($LApostResult -eq 200 -or ($LIpostResult -ge 200 -and $LIpostResult -lt 300) <#-or $skipfile -eq 1#>) {
+if ($LApostResult -eq 200 -or $LIpostResult -eq 200 <#-or $skipfile -eq 1#>) {
     # Skip deletion of empty/irrelevant blobs
     if (!$skipfile) {
         if ($LApostResult -eq 200) {Write-Host ("Storage Account Blobs ingested into Azure Monitoring API to Workspace Table $LATableName")}
-        if ($LIpostResult -ge 200 -and $LIpostResult -lt 300) { Write-Host ("Storage Account Blobs ingested into Azure Log Ingestion API to Workspace Table $DCETable") }
+        if ($LIpostResult -eq 200) { Write-Host ("Storage Account Blobs ingested into Azure Log Ingestion API to Workspace Table $DCETable") }
         Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath
         Remove-Item $logPath
     }else{
