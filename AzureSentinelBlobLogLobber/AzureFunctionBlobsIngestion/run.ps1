@@ -703,8 +703,8 @@ elseif ( !(Test-Path $logPath) -or $(Get-Content $logPath).length -eq 0 <#-or $b
         $renamedJsonPrimative = Build-ChaffedSortedJsonProps -rawJson $cleanedUnsafeJson
         # For use when log source only has prop values, no names:
         # $json = Convert-LogLineToJson($log)
-        Write-Host ("Updated Json Props to be dispatched`n`n" + $renamedJsonPrimative + "`n")
         $compressedJson = $renamedJsonPrimative|ConvertTo-Json -depth 2 -compress
+        Write-Host ("Updated Json Props to be dispatched`n`n" + $compressedJson + "`n")
         try {
         $LApostResult = Submit-ChunkLAdata -Corejson $compressedJson -CustomLogName $LATableName
             Write-Host ("Compressed LA Post Result: " + $LApostResult)
