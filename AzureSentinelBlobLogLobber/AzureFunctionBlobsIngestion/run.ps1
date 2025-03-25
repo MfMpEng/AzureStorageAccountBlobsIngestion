@@ -52,8 +52,10 @@ $QueueArr = @(ConvertFrom-Json $QueueMsg);
 $StorageAccountName = $QueueArr.topic.split('/')[-1]
 $ContainerName = $QueueArr.subject.split('/')[4]
 $BlobPath = $QueueArr.subject.split('/')[6..($QueueArr.subject.split('/').Length - 1)] -join '/'
-$evtTime = $QueueArr.eventTime
 $BlobName = $QueueArr.subject.split('/')[-1]
+$BlobCType = $QueueArr.contentType #application/x-ndjson
+$BlobType = $QueueArr.blobType # BlockBlob
+$evtTime = $QueueArr.eventTime
 $QueueID = $TriggerMetadata.Id
 $QueuePOP = $TriggerMetadata.PopReceipt
 $AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
@@ -658,7 +660,10 @@ if ($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-
     Exit
 }
 # LogFile get (check/skip last, concurrency, etc)
-if ($BlobName -notmatch "\.log$|\.gzip$") {$skipfile = 1;Write-Warning "Blob does not match expected file type"}else{
+if (($BlobType -ne 'BlockBlob' -or $BlobCType -ne 'application/x-ndjson' -or $BlobName -notmatch "\.log$") -or
+    ($BlobType -ne 'BlockBlob' -or $BlobCType -ne 'application/x-ndjson' -or $BlobEncoding -ne 'gzip' -or $BlobName -notmatch "\.gzip$"))
+{ $skipfile = 1; Write-Warning "Blob does not match expected file type" }
+else {
     try {
         Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force
         Write-Host "Blob content downloaded to $logPath"
