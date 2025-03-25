@@ -704,9 +704,9 @@ elseif ( !(Test-Path $logPath) -or $(Get-Content $logPath).length -eq 0 <#-or $b
         # For use when log source only has prop values, no names:
         # $json = Convert-LogLineToJson($log)
         $compressedJson = $renamedJsonPrimative|ConvertTo-Json -depth 2 -compress
-        Write-Host ("Updated Json Props to be dispatched`n`n" + $compressedJson + "`n")
+        Write-Host ("Updated Json Props to be dispatched`n`n" + $renamedJsonPrimative + "`n")
         try {
-        $LApostResult = Submit-ChunkLAdata -Corejson $compressedJson -CustomLogName $LATableName
+        $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName
             Write-Host ("Compressed LA Post Result: " + $LApostResult)
         }catch {
             $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName
