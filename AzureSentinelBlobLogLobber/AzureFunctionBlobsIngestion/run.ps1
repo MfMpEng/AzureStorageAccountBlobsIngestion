@@ -525,7 +525,7 @@ Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$ra
     $propAddedJson = Add-MissingProperties -modJson $modJson -logToTablePropNames $logToTablePropNames
     $sortedjson = New-SortedJson -obj $propAddedJson
     # Convert the sorted object back to JSON
-    $chaffedJson = $sortedjson | ConvertTo-Json -Depth 2 -Compress
+    $chaffedJson = $sortedjson | ConvertTo-Json -Depth 2
     return $chaffedJson
 }
 # Input Parser
@@ -667,16 +667,27 @@ if ($skipfile -eq 1 -or !(Test-Path $logPath) -or $(Get-Content $logPath).length
         # For use when log source only has prop values, no names:
         # $json = Convert-LogLineToJson($log)
         Write-Host ("Updated Json Props to be dispatched`n`n" + $renamedJsonPrimative + "`n")
-        $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName
-        Write-Host ("LA Post Result: " + $LApostResult)
+        $compressedJson = $renamedJsonPrimative|ConvertTo-Json -depth 2 -compress
+        try {
+        $LApostResult = Submit-ChunkLAdata -Corejson $compressedJson -CustomLogName $LATableName
+            Write-Host ("Compressed LA Post Result: " + $LApostResult)
+        }catch {
+            $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName
+            Write-Warning ("Uncompressed LA Post Result: " + $LApostResult)
+        }
+
         #TODO: Create chunking wrapper for LI API
         # For use if receiver is tolerant, which LI is very much not:
         # $kustoCompliantJson = Remove-InvalidProperties -jsonString $cleanedUnsafeJson
         # Don't rewrite native functions:
         # $escapedJson = Format-DirtyKustoJson $kustoCompliantJson
         $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
-        -tenantId $tenantId -Body $renamedJsonPrimative
-        Write-Host ("LI-DCR/E POST Result: " + $LIpostResult)
+        -tenantId $tenantId -Body $compressedJson
+        if ($LIpostResult -ne 200){
+            Write-Host ("LI-DCR/E POST Result: " + $LIpostResult)
+        }else {
+            Write-Warning ("LI-DCR/E POST Result: " + $LIpostResult)
+        }
     }
 }
 # LogFile/Blob/QueueMessage Cleanup
