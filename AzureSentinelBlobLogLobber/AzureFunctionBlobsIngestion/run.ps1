@@ -64,7 +64,7 @@ $DCEbaseURI = $DCE.split('?')[0]
 $DCETable = $DCEbaseURI.split('/')[-1]
 ##### Fn Defs
 # App Insights Authenticator
-function Set-AppInsightsID {
+Function Set-AppInsightsID {
     # Create a DefaultAzureCredential
     $credential = [Azure.Identity.DefaultAzureCredential]::new()
     # Create a new OpenTelemetry tracer provider and set the credential
@@ -114,7 +114,7 @@ Function Write-LogFooter() {
     # Write-Host ("######################################################################################")
 }
 # Input Cleaner
-function Remove-AzStorageQueueMessage([string]$StorageAccountName, [string]$queueName, [string]$messageId, [string]$popReceipt, [string]$connectionString) {
+Function Remove-AzStorageQueueMessage([string]$StorageAccountName, [string]$queueName, [string]$messageId, [string]$popReceipt, [string]$connectionString) {
     # extract SA key and struct body
     #supporting function
     Function Submit-StgAcctDelReq ($StgAcctName, $queueName, $SharedKey, $Body, $uri) {
@@ -154,7 +154,7 @@ function Remove-AzStorageQueueMessage([string]$StorageAccountName, [string]$queu
     return $resp
 }
 # Output Constructor (Write-LAlogFile(Submit-LAlogFile), Remove-AzStorageQueueMessage)
-function Build-Signature ($CustomerID, $SharedKey, $Date, $ContentLength, $method, $ContentType, $resource) {
+Function Build-Signature ($CustomerID, $SharedKey, $Date, $ContentLength, $method, $ContentType, $resource) {
     # Function creates the Authorization signature header value
     $xheaders = 'x-ms-date:' + $Date
     $stringToHash = $method + "`n" + $contentLength + "`n" + $contentType + "`n" + $xHeaders + "`n" + $resource
@@ -370,7 +370,7 @@ Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$ra
         "_visitor_id"               = "F5_visitor_id";
         "@timestamp"                = "F5_timestamp";
         "time"                      = "F5_time";
-        "content-type"              = "F5_content-type";
+        "content-type"              = "F5_content_type";
         "app_type"                  = "F5_app_type";
         "dst"                       = "F5_dst";
         "dst_instance"              = "F5_dst_instance";
@@ -497,14 +497,14 @@ Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$ra
         $modJson.req_headers = $req_headers
     }
     catch {
-        Write-Warning "req_headers not present or invalid in this blob"
+        Write-Output "req_headers not present or invalid in this blob"
     }
     try {
         $original_Headers = $modJson.original_headers | ConvertTo-Json -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
         $modJson.original_Headers = $original_Headers
     }
     catch {
-        Write-Warning "original_headers not present or invalid in this blob"
+        Write-Output "original_headers not present or invalid in this blob"
     }
     # Rename the properties
     foreach ($jsonProp in $modJson.PSObject.Properties) {
@@ -525,7 +525,7 @@ Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$ra
     $propAddedJson = Add-MissingProperties -modJson $modJson -logToTablePropNames $logToTablePropNames
     $sortedjson = New-SortedJson -obj $propAddedJson
     # Convert the sorted object back to JSON
-    $chaffedJson = $sortedjson | ConvertTo-Json -Depth 2
+    $chaffedJson = $sortedjson | ConvertTo-Json -Depth 2 -Compress
     return $chaffedJson
 }
 # Input Parser
