@@ -363,43 +363,47 @@ Function Submit-ChunkLAdata ([string]$corejson, [string]$customLogName) {
 # }
 # Input Parser
 Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$rawJson) {
-    $modJson = $rawJson | ConvertFrom-Json
     # Custom property name dictionary
     [hashtable]$logToTablePropNames = [ordered]@{
+        "@timestamp"                       = "F5_timestamp";
         "_id"                              = "F5_id";
         "_visitor_id"                      = "F5_visitor_id";
-        "@timestamp"                       = "F5_timestamp";
         "time"                             = "F5_time";
         "content-type"                     = "F5_content_type";
-        "app_type"                         = "F5_app_type";
-        "dst"                              = "F5_dst";
-        "dst_instance"                     = "F5_dst_instance";
-        "dst_site"                         = "F5_dst_site";
-        "no_active_detections"             = "F5_no_active_detections";
-        "req_params"                       = "F5_req_params";
+        "accept"                           = "F5_accept"
         "action"                           = "F5_action";
         "api_endpoint"                     = "F5_api_endpoint";
         "app"                              = "F5_app";
         "app_firewall_name"                = "F5_app_firewall_name";
+        "app_type"                         = "F5_app_type";
         "as_number"                        = "F5_as_number";
         "as_org"                           = "F5_as_org";
         "asn"                              = "F5_asn";
         "attack_types"                     = "F5_attack_types";
         "authority"                        = "F5_authority";
+        "bot_class"                        = "F5_bot_class"
         "bot_info"                         = "F5_bot_info";
         "browser_type"                     = "F5_browser_type";
         "calculated_action"                = "F5_calculated_action";
         "city"                             = "F5_city";
         "cluster_name"                     = "F5_cluster_name";
+        "connected_time"                   = "F5_connected_time"
+        "connection_state"                 = "F5_connection_state"
         "country"                          = "F5_country";
         "dcid"                             = "F5_dcid";
         "detections"                       = "F5_detections";
         "device_type"                      = "F5_device_type";
         "domain"                           = "F5_domain";
+        "dst"                              = "F5_dst";
+        "dst_instance"                     = "F5_dst_instance";
         "dst_ip"                           = "F5_dst_ip";
         "dst_port"                         = "F5_dst_port";
+        "dst_site"                         = "F5_dst_site";
+        "duration_with_data_tx_delay"      = "F5_duration_with_data_tx_delay"
+        "duration_with_no_data_tx_delay"   = "F5_duration_with_no_data_tx_delay"
         "enforcement_mode"                 = "F5_enforcement_mode";
         "excluded_threat_campaigns"        = "F5_excluded_threat_campaigns";
+        "has_sec_event"                    = "F5_has_sec_event"
         "hostname"                         = "F5_hostname";
         "http_version"                     = "F5_http_version";
         "is_new_dcid"                      = "F5_is_new_dcid";
@@ -407,24 +411,43 @@ Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$ra
         "ja4_tls_fingerprint"              = "F5_ja4_tls_fingerprint";
         "kubernetes"                       = "F5_kubernetes";
         "latitude"                         = "F5_latitude";
+        "lb_port"                          = "F5_lb_port"
         "longitude"                        = "F5_longitude";
         "messageid"                        = "F5_messageid";
         "method"                           = "F5_method";
+        "mtls"                             = "F5_mtls"
         "namespace"                        = "F5_namespace";
         "network"                          = "F5_network";
+        "no_active_detections"             = "F5_no_active_detections";
+        "node_id"                          = "F5_node_id"
+        "origin"                           = "F5_origin"
+        "original_authority"               = "F5_original_authority"
         "original_headers"                 = "F5_original_headers";
         "original_path"                    = "F5_original_path";
+        "original_referer"                 = "F5_original_referer";
         "path"                             = "F5_path";
+        "policy_hits"                      = "F5_policy_hits"
+        "protocol"                         = "F5_protocol"
+        "proxy_type"                       = "F5_proxy_type"
         "recommended_action"               = "F5_recommended_action";
+        "referer"                          = "F5_referer"
         "region"                           = "F5_region";
         "req_headers"                      = "F5_req_headers";
         "req_headers_size"                 = "F5_req_headers_size";
         "req_id"                           = "F5_req_id";
+        "req_params"                       = "F5_req_params";
         "req_path"                         = "F5_req_path";
         "req_size"                         = "F5_req_size";
+        "response_flags"                   = "F5_response_flags"
         "rsp_code"                         = "F5_rsp_code";
         "rsp_code_class"                   = "F5_rsp_code_class";
+        "rsp_code_details"                 = "F5_rsp_code_details"
+        "rsp_headers"                      = "F5_rsp_headers"
         "rsp_size"                         = "F5_rsp_size";
+        "rtt_downstream_seconds"           = "F5_rtt_downstream_seconds"
+        "rtt_upstream_seconds"             = "F5_rtt_upstream_seconds"
+        "sample_rate"                      = "F5_sample_rate"
+        "scheme"                           = "F5_scheme"
         "sec_event_name"                   = "F5_sec_event_name";
         "sec_event_type"                   = "F5_sec_event_type";
         "severity"                         = "F5_severity";
@@ -439,31 +462,8 @@ Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$ra
         "stream"                           = "F5_stream";
         "tag"                              = "F5_tag";
         "tenant"                           = "F5_tenant";
-        "threat_campaigns"                 = "F5_threat_campaigns";
-        "tls_fingerprint"                  = "F5_tls_fingerprint";
-        "user"                             = "F5_user";
-        "user_agent"                       = "F5_user_agent";
-        "vh_name"                          = "F5_vh_name";
-        "vhost_id"                         = "F5_vhost_id";
-        "violation_details"                = "F5_violation_details";
-        "violation_rating"                 = "F5_violation_rating";
-        "violations"                       = "F5_violations";
-        "waf_mode"                         = "F5_waf_mode";
-        "x_forwarded_for"                  = "F5_x_forwarded_for";
-        "node_id"                          = "F5_node_id"
-        "original_authority"               = "F5_original_authority"
-        "policy_hits"                      = "F5_policy_hits"
-        "protocol"                         = "F5_protocol"
-        "proxy_type"                       = "F5_proxy_type"
-        "referer"                          = "F5_referer"
-        "response_flags"                   = "F5_response_flags"
-        "rsp_code_details"                 = "F5_rsp_code_details"
-        "rsp_headers"                      = "F5_rsp_headers"
-        "rtt_downstream_seconds"           = "F5_rtt_downstream_seconds"
-        "rtt_upstream_seconds"             = "F5_rtt_upstream_seconds"
-        "sample_rate"                      = "F5_sample_rate"
-        "scheme"                           = "F5_scheme"
         "terminated_time"                  = "F5_terminated_time"
+        "threat_campaigns"                 = "F5_threat_campaigns";
         "time_to_first_downstream_tx_byte" = "F5_time_to_first_downstream_tx_byte"
         "time_to_first_upstream_rx_byte"   = "F5_time_to_first_upstream_rx_byte"
         "time_to_first_upstream_tx_byte"   = "F5_time_to_first_upstream_tx_byte"
@@ -473,95 +473,79 @@ Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$ra
         "time_to_last_upstream_tx_byte"    = "F5_time_to_last_upstream_tx_byte"
         "timeseries_enabled"               = "F5_timeseries_enabled"
         "tls_cipher_suite"                 = "F5_tls_cipher_suite"
+        "tls_fingerprint"                  = "F5_tls_fingerprint";
         "tls_version"                      = "F5_tls_version"
+        "user"                             = "F5_user";
+        "user_agent"                       = "F5_user_agent";
+        "vh_name"                          = "F5_vh_name";
         "vh_type"                          = "F5_vh_type"
+        "vhost_id"                         = "F5_vhost_id";
+        "violation_details"                = "F5_violation_details";
+        "violation_rating"                 = "F5_violation_rating";
+        "violations"                       = "F5_violations";
         "waf_action"                       = "F5_waf_action"
-        "accept"                           = "F5_accept"
-        "connected_time"                   = "F5_connected_time"
-        "connection_state"                 = "F5_connection_state"
-        "duration_with_data_tx_delay"      = "F5_duration_with_data_tx_delay"
-        "duration_with_no_data_tx_delay"   = "F5_duration_with_no_data_tx_delay"
-        "lb_port"                          = "F5_lb_port"
-        "mtls"                             = "F5_mtls"
-        "bot_class"                        = "F5_bot_class"
-        "has_sec_event"                    = "F5_has_sec_event"
+        "waf_mode"                         = "F5_waf_mode";
+        "x_forwarded_for"                  = "F5_x_forwarded_for";
+
     }
-    ## Supporting Functions
-    # Sort JSON properties alphabetically
-    Function New-SortedJson  ([Parameter(Mandatory = $true)][psobject]$obj) {
-        $queue = @($obj)
-        while ($queue.Count -gt 0) {
-            $current = $queue
-            $queue = $queue[1..$queue.Count]
-            if ($current -is [System.Collections.Hashtable] -or $current -is [System.Management.Automation.PSObject]) {
-                $sortedObj = @{}
-                foreach ($key in ($current.PSObject.Properties.Name | Sort-Object)) {
-                    $sortedObj[$key] = $current.$key
-                    $queue += $current.$key
-                }
-                $current.PSObject.Properties.Clear()
-                foreach ($key in $sortedObj.Keys) {
-                    $current.PSObject.Properties.Add([PSNoteProperty]::new($key, $sortedObj[$key]))
-                }
-            }
-            elseif ($current -is [System.Collections.ArrayList]) {
-                foreach ($item in $current) {
-                    $queue += $item
-                }
-            }
+    Function New-SortedJsonProperties ([Parameter(Mandatory = $true)][PSCustomObject]$modjson) {
+        # Convert the JSON PSObject to a hashtable
+        $jsonHashTable = @{}
+        $modjson.PSObject.Properties | ForEach-Object {
+            $jsonHashTable[$_.Name] = $_.Value
         }
-        return $current
+        # Sort the hashtable by keys
+        $sortedHashTable = $jsonHashTable.GetEnumerator() | Sort-Object Name
+        # Convert the sorted hashtable back to a JSON PSObject
+        $sortedJsonObject = [PSCustomObject]@{}
+        $sortedHashTable | ForEach-Object {
+            $sortedJsonObject | Add-Member -MemberType NoteProperty -Name $_.Name -Value $_.Value
+        }
+        return $sortedJsonObject
     }
-    # Add any missing props from dictionary
     Function Add-MissingProperties ([Parameter(Mandatory = $true)][psobject]$modJson, [hashtable]$logToTablePropNames) {
-        # Debug statements to check input values
-        # Iterate through the keys in logToTablePropNames
         foreach ($newName in $logToTablePropNames.Values) {
-            # Check if the key is not present in modJson
             if (-not $modJson.PSObject.Properties.Name.Contains($newName)) {
-                # Add the missing property with an empty string value
                 $modJson | Add-Member -MemberType NoteProperty -Name $newName -Value ""
             }
         }
         return $modJson
     }
-    # Execution
-    # Fix escaped JSON subarrays
-    try {
-        $req_headers = $modJson.req_headers | ConvertFrom-Json
-        $modJson.req_headers = $req_headers
-    }
-    catch {
-        # Write-Debug "req_headers not present or invalid in this blob"
-    }
-    try {
-        $original_Headers = $modJson.original_headers | ConvertTo-Json -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
-        $modJson.original_Headers = $original_Headers
-    }
-    catch {
-        # Write-Debug "original_headers not present or invalid in this blob"
-    }
-    # Rename the properties
-    foreach ($jsonProp in $modJson.PSObject.Properties) {
-        $oldName = $jsonProp.Name
-        $newName = $logToTablePropNames[$oldName]
-        if ($logToTablePropNames.ContainsKey($oldName)) {
-            $modJson | Add-Member -MemberType NoteProperty -Name $newName -Value $jsonProp.Value -Force
-            $modJson.PSObject.Properties.Remove($oldName)
+    Function Resolve-EscapedJsonSubarrays ([Parameter(Mandatory = $true)][psobject]$modJson) {
+        try {
+            $modJson.req_headers = $modJson.req_headers | ConvertFrom-Json
         }
-        else {
-            Write-Error ("Found extra field from this blob: " + $oldName) -ErrorAction Continue
-            # $modJson | Add-Member -MemberType NoteProperty -Name $newName -Value "" -Force
+        catch {}
+        try {
+            $modJson.original_headers = $modJson.original_headers | ConvertTo-Json -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
         }
+        catch {}
+        return $modJson
     }
-    # Add required field
-    $modJson | Add-Member -MemberType NoteProperty -Name "TimeGenerated" -Value $modJson."F5_timestamp" -Force
-    # Sort the properties of the JSON object
-    $propAddedJson = Add-MissingProperties -modJson $modJson -logToTablePropNames $logToTablePropNames
-    $sortedjson = New-SortedJson -obj $propAddedJson
-    # Convert the sorted object back to JSON
-    $chaffedJson = $sortedjson | ConvertTo-Json -Depth 2
-    return $chaffedJson
+    Function Resolve-JsonPropertyNames ([Parameter(Mandatory = $true)][psobject]$modjson) {
+        foreach ($jsonProp in $modJson.PSObject.Properties) {
+            $oldName = $jsonProp.Name
+            if ($logToTablePropNames.ContainsKey($oldName)) {
+                $newName = $logToTablePropNames[$oldName]
+                $modJson | Add-Member -MemberType NoteProperty -Name $newName -Value $jsonProp.Value -Force
+                $modJson.PSObject.Properties.Remove($oldName)
+            }
+        }
+        return $modjson
+    }
+    $modJson = $rawJson | ConvertFrom-Json
+    Write-Output "#################modJson`n" $modJson
+    $escapedJson = Resolve-EscapedJsonSubarrays -modJson $modJson
+    Write-Output "#################escapedJson`n" $escapedJson
+    $escapedJson | Add-Member -MemberType NoteProperty -Name "TimeGenerated" -Value $escapedJson."@timestamp" -Force
+    $namedJson = Resolve-JsonPropertyNames -modjson $escapedJson
+    Write-Output "#################namedJson`n" $namedJson
+    $chaffedJson = Add-MissingProperties -modJson $namedJson -logToTablePropNames $logToTablePropNames
+    Write-Output "#################chaffedJson`n" $chaffedJson
+    $sortedJson = New-SortedJsonProperties -modjson $chaffedJson
+    Write-Output "#################sortedJson`n" $sortedJson
+    $stringedJson = $sortedJson | ConvertTo-Json -Depth 2
+    return $stringedJson
 }
 # Input Parser
 Function Remove-InvalidProperties ([Parameter(Mandatory = $true)][string]$JsonString) {
@@ -721,9 +705,9 @@ elseif ( !(Test-Path $logPath) -or $(Get-Content $logPath).length -eq 0 <#-or $b
         $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
         -tenantId $tenantId -Body $renamedJsonPrimative
         if ($LIpostResult -ne 200){
-            Write-Host ("LI-DCR/E POST Result: " + $LIpostResult)
+            Write-Host ("############################# LI-DCR/E POST Result: " + $LIpostResult)
         }else {
-            Write-Warning ("LI-DCR/E POST Result: " + $LIpostResult)
+            Write-Warning ("########################## LI-DCR/E POST Result: " + $LIpostResult)
         }
     }
 }
