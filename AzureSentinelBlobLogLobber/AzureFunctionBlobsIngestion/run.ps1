@@ -661,7 +661,7 @@ if ($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-
     Exit
 }
 # LogFile get (check/skip last, concurrency, etc)
-if (($BlobType -ne 'BlockBlob' -or $BlobCType -ne 'application/x-ndjson' -or $BlobName -notmatch "\.log$") -or
+if (($BlobType -ne 'BlockBlob' -or $BlobCType -ne 'application/x-ndjson' -or $BlobName -notmatch "\.log$") -and
     ($BlobType -ne 'BlockBlob' -or $BlobCType -ne 'application/x-ndjson' -or $BlobEncoding -ne 'gzip' -or $BlobName -notmatch "\.gzip$"))
 { $skipfile = 1; Write-Warning ("Blob does not match expected file type: " + $BlobType + "  " +  $BlobCType) }
 else {
