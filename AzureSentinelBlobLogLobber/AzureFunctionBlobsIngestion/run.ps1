@@ -31,40 +31,40 @@
 # Input bindings are passed in via param block.
 param( [object]$QueueItem, [object]$TriggerMetadata )
 # $VerbosePreference = "Continue"
-# $QueueItem = [PSObject]::AsPSObject($QueueItem)
-# $TriggerMetadata = [PSObject]::AsPSObject($TriggerMetadata)
+# $QueueItem         = [PSObject]::AsPSObject($QueueItem)
+# $TriggerMetadata   = [PSObject]::AsPSObject($TriggerMetadata)
 #####Env Vars
-$LAURI = $env:LAURI
+$LAURI               = $env:LAURI
 $AzureWebJobsStorage = $env:AzureWebJobsStorage
-$LATableName = $env:LATableName
-$StgQueueName = $env:StgQueueName
-$WorkspaceId = $env:WorkspaceId
-$Workspacekey = $env:LogAnalyticsWorkspaceKey
-# TODO: ARM with DCR/DCE and EntApp
-$DCE = $env:DCE
-$tenantId = $env:tenantId
-$DCEEntAppId = $env:DCEEntAppId
-$DCEEntAppRegKey = $env:DCEEntAppRegKey
+$LATableName         = $env:LATableName
+$StgQueueName        = $env:StgQueueName
+$WorkspaceId         = $env:WorkspaceId
+$Workspacekey        = $env:LogAnalyticsWorkspaceKey
+#                    TODO  : ARM with DCR/DCE and EntApp
+$DCE                 = $env:DCE
+$tenantId            = $env:tenantId
+$DCEEntAppId         = $env:DCEEntAppId
+$DCEEntAppRegKey     = $env:DCEEntAppRegKey
 ##### Init vars
 # $ResourceGroup      = $QueueArr.topic.split('/')[4]
-$QueueMsg = ConvertTo-Json $QueueItem -depth 4
-$QueueArr = @(ConvertFrom-Json $QueueMsg);
-$StorageAccountName = $QueueArr.topic.split('/')[-1]
-$ContainerName = $QueueArr.subject.split('/')[4]
-$BlobPath = $QueueArr.subject.split('/')[6..($QueueArr.subject.split('/').Length - 1)] -join '/'
-$BlobName = $QueueArr.subject.split('/')[-1]
-$BlobCType = $QueueArr.data.contentType #application/x-ndjson
-$BlobType = $QueueArr.data.blobType # BlockBlob
-$BlobEncoding = $QueueArr.data.contentEncoding # gzip
-$evtTime = $QueueArr.eventTime
-$QueueID = $TriggerMetadata.Id
-$QueuePOP = $TriggerMetadata.PopReceipt
-$AzureStorage = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
-$logPath = [System.IO.Path]::Combine($env:TEMP, $BlobName)
-$skipfile = $false;
-# $actorIP = Invoke-RestMethod -Uri "https://ifconfig.me/ip"
-$DCEbaseURI = $DCE.split('?')[0]
-$DCETable = $DCEbaseURI.split('/')[-1]
+  $QueueMsg           = ConvertTo-Json $QueueItem -depth 4
+  $QueueArr           = @(ConvertFrom-Json $QueueMsg);
+  $StorageAccountName = $QueueArr.topic.split('/')[-1]
+  $ContainerName      = $QueueArr.subject.split('/')[4]
+  $BlobPath           = $QueueArr.subject.split('/')[6..($QueueArr.subject.split('/').Length - 1)] -join '/'
+  $BlobName           = $QueueArr.subject.split('/')[-1]
+  $BlobCType          = $QueueArr.data.contentType #application/x-ndjson
+  $BlobType           = $QueueArr.data.blobType # BlockBlob
+  $BlobEncoding       = $QueueArr.data.contentEncoding # gzip
+  $evtTime            = $QueueArr.eventTime
+  $QueueID            = $TriggerMetadata.Id
+  $QueuePOP           = $TriggerMetadata.PopReceipt
+  $AzureStorage       = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
+  $logPath            = [System.IO.Path]::Combine($env:TEMP, $BlobName)
+  $skipfile           = $false;
+# $actorIP            = Invoke-RestMethod -Uri "https://ifconfig.me/ip"
+  $DCEbaseURI         = $DCE.split('?')[0]
+  $DCETable           = $DCEbaseURI.split('/')[-1]
 ##### Fn Defs
 # App Insights Authenticator
 Function Set-AppInsightsID {
@@ -92,21 +92,20 @@ Function Set-AppInsightsID {
 # Code Wrapper
 Function Write-LogHeader() {
     # Write out the queue message and metadata to the information log.
-    # Write-Host ("######################################################################################")
+    Write-Host ("######################################################################################")
     Write-Host ("######################### BEGIN NEW TRANSACTION ######################################")
-    Write-Host ("################# $BlobName ################")
+    # Write-Host ("################# $BlobName ################")
     # Write-Host ("######################################################################################")
-    # Write-Host ("Dequeue count               :" + $TriggerMetadata.DequeueCount)
-    # Write-Host ("PowerShell queue trigger function processed work item:" + $QueueItem)
-    # Write-Host ("Log Analytics URI           :" + $LAURI)
-    Write-Host ("Log Ingestion URI           :`n" + $DCE)
+    # Write-Host ("Dequeue count               : " + $TriggerMetadata.DequeueCount)
+    Write-Host ("Log Analytics URI           : " + $LAURI)
+    Write-Host ("Log Ingestion URI           :`n"+ $DCE)
     # Write-Host ("This Fn App Host outbound IP: " + $actorIP)
-    # Write-Host ("Queue Message ID            :" + $QueueId)
-    # Write-Host ("Queue Message Pop receipt   :" + $QueuePOP)
-    # Write-Host ("Current Directory           :" + $(Get-Location))
-    # Write-Host ("Queue item expiration time  :" + $TriggerMetadata.ExpirationTime)
-    # Write-Host ("Queue item insertion time   :" + $TriggerMetadata.InsertionTime)
-    # Write-Host ("Queue item next visible time:" + $TriggerMetadata.NextVisibleTime)
+    # Write-Host ("Queue Message ID            : " + $QueueId)
+    # Write-Host ("Queue Message Pop receipt   : " + $QueuePOP)
+    # Write-Host ("Current Directory           : " + $(Get-Location))
+    # Write-Host ("Queue item expiration time  : " + $TriggerMetadata.ExpirationTime)
+    # Write-Host ("Queue item insertion time   : " + $TriggerMetadata.InsertionTime)
+    # Write-Host ("Queue item next visible time: " + $TriggerMetadata.NextVisibleTime)
     # Write-Host ("$evtTime Queue Reported new item - BlobName:  $BlobName")
 }
 # Code Wrapper
@@ -122,11 +121,11 @@ Function Remove-AzStorageQueueMessage([string]$StorageAccountName, [string]$queu
     #supporting function
     Function Submit-StgAcctDelReq ($StgAcctName, $queueName, $SharedKey, $Body, $uri) {
         # struct headers and RPC
-        $method = "DELETE"
+        $method        = "DELETE"
         $ContentLength = $Body.Length
-        $ContentType = 'text/html; charset=utf-8'
-        $rfc1123date = (Get-Date).ToString('R')
-        $signature = Build-Signature -CustomerID $StgAcctName -SharedKey $SharedKey -Date $rfc1123date `
+        $ContentType   = 'text/html; charset=utf-8'
+        $rfc1123date   = (Get-Date).ToString('R')
+        $signature     = Build-Signature -CustomerID $StgAcctName -SharedKey $SharedKey -Date $rfc1123date `
         -ContentLength $ContentLength -method $method -ContentType $ContentType -resource $resource
         $headers = @{
             "Authorization" = $signature;
@@ -135,7 +134,7 @@ Function Remove-AzStorageQueueMessage([string]$StorageAccountName, [string]$queu
         try {
                 $response = Invoke-WebRequest -Uri $uri -Method $method -Headers $headers -ContentType $ContentType -Body $Body
                 $QdelResp = $response.statuscode
-                Write-Host -Message ('Storage Queue Delete Result ' + $QdelResp)
+                # Write-Host -Message ('Storage Queue Delete Result ' + $QdelResp)
         } catch {
                 Write-Error ("Queue Delete Status Code:" + $_.Exception.Type + " " + $_.Exception.ScriptStackTrace)
                 $QdelResp = $_.Exception.Message
@@ -159,14 +158,14 @@ Function Remove-AzStorageQueueMessage([string]$StorageAccountName, [string]$queu
 # Output Constructor (Write-LAlogFile(Submit-LAlogFile), Remove-AzStorageQueueMessage)
 Function Build-Signature ($CustomerID, $SharedKey, $Date, $ContentLength, $method, $ContentType, $resource) {
     # Function creates the Authorization signature header value
-    $xheaders = 'x-ms-date:' + $Date
-    $stringToHash = $method + "`n" + $contentLength + "`n" + $contentType + "`n" + $xHeaders + "`n" + $resource
-    $bytesToHash = [text.Encoding]::UTF8.GetBytes($stringToHash)
-    $keyBytes = [Convert]::FromBase64String($SharedKey)
-    $sha256 = New-Object System.Security.Cryptography.HMACSHA256
-    $sha256.key = $keyBytes
+    $xheaders      = 'x-ms-date:' + $Date
+    $stringToHash  = $method + "`n" + $contentLength + "`n" + $contentType + "`n" + $xHeaders + "`n" + $resource
+    $bytesToHash   = [text.Encoding]::UTF8.GetBytes($stringToHash)
+    $keyBytes      = [Convert]::FromBase64String($SharedKey)
+    $sha256        = New-Object System.Security.Cryptography.HMACSHA256
+    $sha256.key    = $keyBytes
     $calculateHash = $sha256.ComputeHash($bytesToHash)
-    $encodeHash = [convert]::ToBase64String($calculateHash)
+    $encodeHash    = [convert]::ToBase64String($calculateHash)
     $authorization = 'SharedKey {0}:{1}' -f $CustomerID, $encodeHash
     return $authorization
     # $signature = [System.Security.Cryptography.HMACSHA256]::new([System.Text.Encoding]::UTF8.GetBytes($SharedKey))
@@ -252,13 +251,13 @@ Function Write-LAlogFile {
     Function Submit-LApostRequest ([string]$CustomerID, [string]$SharedKey, [string]$Body, [string]$Type) {
         # Function generates HTTP header/body and POST it
         [cmdletbinding()]
-        $method = "POST"
-        $ContentType = 'application/json'
-        $resource = '/api/logs'
-        $rfc1123date = (Get-Date).ToString('R')
+        $method           = "POST"
+        $ContentType      = 'application/json'
+        $resource         = '/api/logs'
+        $rfc1123date      = (Get-Date).ToString('R')
         $Iso8601ZventTime = $datetime.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-        $ContentLength = $Body.Length
-        $signature = Build-Signature -CustomerID $CustomerID -SharedKey $SharedKey -Date $rfc1123date `
+        $ContentLength    = $Body.Length
+        $signature        = Build-Signature -CustomerID $CustomerID -SharedKey $SharedKey -Date $rfc1123date `
         -ContentLength $ContentLength -method $method -ContentType $ContentType -resource $resource
         $uri = $LAURI.Trim() + $resource + "?api-version=2016-04-01"
         $headers = @{
@@ -536,12 +535,12 @@ Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$ra
         }
         return $modjson
     }
-    $modJson = $rawJson | ConvertFrom-Json
-    $escapedJson = Resolve-EscapedJsonSubarrays -modJson $modJson
-    $escapedJson | Add-Member -MemberType NoteProperty -Name "TimeGenerated" -Value $escapedJson."@timestamp" -Force
-    $namedJson = Resolve-JsonPropertyNames -modjson $escapedJson
-    $chaffedJson = Add-MissingProperties -modJson $namedJson -logToTablePropNames $logToTablePropNames
-    $sortedJson = New-SortedJsonProperties -modjson $chaffedJson
+    $modJson      = $rawJson | ConvertFrom-Json
+    $escapedJson  = Resolve-EscapedJsonSubarrays -modJson $modJson
+    $escapedJson  | Add-Member -MemberType NoteProperty -Name "TimeGenerated" -Value $escapedJson."@timestamp" -Force
+    $namedJson    = Resolve-JsonPropertyNames -modjson $escapedJson
+    $chaffedJson  = Add-MissingProperties -modJson $namedJson -logToTablePropNames $logToTablePropNames
+    $sortedJson   = New-SortedJsonProperties -modjson $chaffedJson
     $stringedJson = $sortedJson | ConvertTo-Json -Depth 2 -Compress
     return $stringedJson
 }
@@ -559,7 +558,7 @@ Function Remove-InvalidProperties ([Parameter(Mandatory = $true)][string]$JsonSt
         $jsonObject.original_Headers = $original_Headers
     }
     catch {
-        Write-Warning "Original_Headers not present in this blob"
+        # Write-Warning "Original_Headers not present in this blob"
     }
     # Recursive function to remove invalid properties
     function Remove-InvalidProps {
@@ -662,7 +661,7 @@ if (($BlobType -ne 'BlockBlob' -or $BlobCType -ne 'application/x-ndjson' -or $Bl
 else {
     try {
         Get-AzStorageBlobContent -Context $AzureStorage -Container $ContainerName -Blob $BlobPath -Destination $logPath -Force
-        Write-Host "Blob content downloaded to $logPath"
+        # Write-Host "Blob content downloaded to $logPath"
     } catch {
         $BlobGetResp = $_.Exception.Message
         Write-Error ("Get Blob Status Code: " + $BlobGetResp + " " + $_.Exception.Type + " " + $_.Exception.ScriptStackTrace)
@@ -722,7 +721,7 @@ if ($LApostResult -eq 200 -or $LIpostResult -eq 200 <#-or $skipfile -eq 1#>) {
         # We polled a queue message about a blob that was missing or invalid. Could just nix queue message to prevent retry.
         $queueDelResponse = Remove-AzStorageQueueMessage -StorageAccountName $StorageAccountName -queueName $StgQueueName `
         -messageId $QueueID -popReceipt $QueuePOP -connectionString $AzureWebJobsStorage
-        Write-Host ("Queue Message Deletion Status: " + $queueDelResponse)
+        # Write-Host ("Queue Message Deletion Status: " + $queueDelResponse)
     }
 }
 Write-LogFooter
