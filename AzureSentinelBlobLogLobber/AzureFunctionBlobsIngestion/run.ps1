@@ -542,7 +542,7 @@ Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$ra
     $namedJson = Resolve-JsonPropertyNames -modjson $escapedJson
     $chaffedJson = Add-MissingProperties -modJson $namedJson -logToTablePropNames $logToTablePropNames
     $sortedJson = New-SortedJsonProperties -modjson $chaffedJson
-    $stringedJson = $sortedJson | ConvertTo-Json -Depth 2
+    $stringedJson = $sortedJson | ConvertTo-Json -Depth 2 -Compress
     return $stringedJson
 }
 # Input Parser
@@ -701,8 +701,6 @@ elseif ( !(Test-Path $logPath) -or $(Get-Content $logPath).length -eq 0 <#-or $b
         #TODO: Create chunking wrapper for LI API
         # For use if receiver is tolerant, which LI is very much not:
         # $kustoCompliantJson = Remove-InvalidProperties -jsonString $cleanedUnsafeJson
-        # Don't rewrite native functions:
-        # $escapedJson = Format-DirtyKustoJson $kustoCompliantJson
         $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
         -tenantId $tenantId -Body $renamedJsonPrimative
         if ($LIpostResult -ne 200){
