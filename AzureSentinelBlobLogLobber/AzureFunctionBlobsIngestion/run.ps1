@@ -537,16 +537,11 @@ Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$ra
         return $modjson
     }
     $modJson = $rawJson | ConvertFrom-Json
-    Write-Output "#################modJson`n" $modJson
     $escapedJson = Resolve-EscapedJsonSubarrays -modJson $modJson
-    Write-Output "#################escapedJson`n" $escapedJson
     $escapedJson | Add-Member -MemberType NoteProperty -Name "TimeGenerated" -Value $escapedJson."@timestamp" -Force
     $namedJson = Resolve-JsonPropertyNames -modjson $escapedJson
-    Write-Output "#################namedJson`n" $namedJson
     $chaffedJson = Add-MissingProperties -modJson $namedJson -logToTablePropNames $logToTablePropNames
-    Write-Output "#################chaffedJson`n" $chaffedJson
     $sortedJson = New-SortedJsonProperties -modjson $chaffedJson
-    Write-Output "#################sortedJson`n" $sortedJson
     $stringedJson = $sortedJson | ConvertTo-Json -Depth 2
     return $stringedJson
 }
