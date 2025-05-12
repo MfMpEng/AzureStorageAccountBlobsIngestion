@@ -363,14 +363,16 @@ Function Submit-ChunkLAdata ([string]$corejson, [string]$customLogName) {
 #     $logJson += "}]";
 #     return $logJson
 # }
-Function New-jsonToArray ([Parameter(Mandatory = $true )]$rawJson){
-    # Convert the JSON object into an array
-    $jsonArray = @($rawJson)
+
+Function New-jsonToArray ([Parameter(Mandatory = $true )]$rawJson) {
+    # Convert the raw JSON string to a PowerShell object
+    $jsonObject = $rawJson | ConvertFrom-Json
+    # Wrap the JSON object in an array
+    $jsonArray = @($jsonObject)
     # Convert the array back to JSON for submission
-    $jsonArrayString = $jsonArray | ConvertTo-Json
+    $jsonArrayString = $jsonArray | ConvertTo-Json -Depth 100
     # Output the JSON array string
     return $jsonArrayString
-
 }
 # Input Parser
 Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$rawJson) {
