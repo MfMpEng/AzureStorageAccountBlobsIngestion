@@ -47,24 +47,24 @@ $DCEEntAppId         = $env:DCEEntAppId
 $DCEEntAppRegKey     = $env:DCEEntAppRegKey
 ##### Init vars
 # $ResourceGroup      = $QueueArr.topic.split('/')[4]
-  $QueueMsg           = ConvertTo-Json $QueueItem -depth 4
-  $QueueArr           = @(ConvertFrom-Json $QueueMsg);
-  $StorageAccountName = $QueueArr.topic.split('/')[-1]
-  $ContainerName      = $QueueArr.subject.split('/')[4]
-  $BlobPath           = $QueueArr.subject.split('/')[6..($QueueArr.subject.split('/').Length - 1)] -join '/'
-  $BlobName           = $QueueArr.subject.split('/')[-1]
-  $BlobCType          = $QueueArr.data.contentType #application/x-ndjson
-  $BlobType           = $QueueArr.data.blobType # BlockBlob
-  $BlobEncoding       = $QueueArr.data.contentEncoding # gzip
-  $evtTime            = $QueueArr.eventTime
+$QueueMsg           = ConvertTo-Json $QueueItem -depth 4
+$QueueArr           = @(ConvertFrom-Json $QueueMsg);
+$StorageAccountName = $QueueArr.topic.split('/')[-1]
+$ContainerName      = $QueueArr.subject.split('/')[4]
+$BlobPath           = $QueueArr.subject.split('/')[6..($QueueArr.subject.split('/').Length - 1)] -join '/'
+$BlobName           = $QueueArr.subject.split('/')[-1]
+$BlobCType          = $QueueArr.data.contentType #application/x-ndjson
+$BlobType           = $QueueArr.data.blobType # BlockBlob
+$BlobEncoding       = $QueueArr.data.contentEncoding # gzip
+$evtTime            = $QueueArr.eventTime
 #   $QueueID            = $TriggerMetadata.Id
 #   $QueuePOP           = $TriggerMetadata.PopReceipt
-  $AzureStorage       = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
-  $logPath            = [System.IO.Path]::Combine($env:TEMP, $BlobName)
-  $skipfile           = $false;
+$AzureStorage       = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
+$logPath            = [System.IO.Path]::Combine($env:TEMP, $BlobName)
+$skipfile           = $false;
 # $actorIP            = Invoke-RestMethod -Uri "https://ifconfig.me/ip"
-  $DCEbaseURI         = $DCE.split('?')[0]
-  $DCETable           = $DCEbaseURI.split('/')[-1]
+$DCEbaseURI         = $DCE.split('?')[0]
+$DCETable           = $DCEbaseURI.split('/')[-1]
 ##### Fn Defs
 # App Insights Authenticator
 Function Set-AppInsightsID {
@@ -363,6 +363,7 @@ Function Submit-ChunkLAdata ([string]$corejson, [string]$customLogName) {
 #     $logJson += "}]";
 #     return $logJson
 # }
+# Output spotfix
 Function New-jsonToArray ([Parameter(Mandatory = $true )]$rawJson) {
     # Append square brackets around the JSON string to convert it into an array
     $jsonArrayString = "[$rawJson]"
@@ -494,7 +495,6 @@ Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$ra
         "waf_action"                       = "F5_waf_action"
         "waf_mode"                         = "F5_waf_mode";
         "x_forwarded_for"                  = "F5_x_forwarded_for";
-
     }
     Function New-SortedJsonProperties ([Parameter(Mandatory = $true)][PSCustomObject]$modjson) {
         # Convert the JSON PSObject to a hashtable
@@ -656,13 +656,18 @@ Function Expand-JsonGzip([string]$logpath) {
 # $appInsightsID = Set-AppInsightsID
 Write-LogHeader
 # Validate output destination is expected (old OMS/LA API)
-if ($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-Z\.]+)$') {
-    Write-Error -Message ("Storage Account Blobs Ingestion: Invalid Log Analytics Uri." + $LAURI) -ErrorAction Stop
-    Exit
-}
+# if ($LAURI.Trim() -notmatch 'https:\/\/([\w\-]+)\.ods\.opinsights\.azure.([a-zA-Z\.]+)$') {
+    # Write-Error -Message ("Storage Account Blobs Ingestion: Invalid Log Analytics Uri." + $LAURI) -ErrorAction Stop
+    # Exit
+# }
 # LogFile get (check/skip last, concurrency, etc)
-if (($BlobType -ne 'BlockBlob' -or $BlobCType -ne 'application/x-ndjson' -or $BlobName -notmatch "\.log$") -and
-    ($BlobType -ne 'BlockBlob' -or $BlobCType -ne 'application/x-ndjson' -or $BlobEncoding -ne 'gzip' -or $BlobName -notmatch "\.gzip$"))
+if (
+        ($logpath -like "*`$logs*") -or
+        (
+            ($BlobType -ne 'BlockBlob' -or $BlobCType -ne 'application/x-ndjson' -or $BlobName -notmatch "\.log$") -and
+            ($BlobType -ne 'BlockBlob' -or $BlobCType -ne 'application/x-ndjson' -or $BlobEncoding -ne 'gzip' -or $BlobName -notmatch "\.gzip$")
+        )
+    )
 { $skipfile = 1; Write-Warning ("Blob does not match expected file type: " + $BlobType + "  " +  $BlobCType) }
 else {
     try {
@@ -677,7 +682,7 @@ else {
 }
 # LogFile read/validate/process
 if ($skipfile -eq 1){<#NOOP#>}
-elseif ( !(Test-Path $logPath) -or $(Get-Content $logPath).length -eq 0 <#-or $blobContent -ne $(Get-Content $logPath)#>){
+elseif ( !(Test-Path $logPath) -or $(Get-Content $logPath).length -eq 0 -or $logpath -like "*`$logs*" <#-or $blobContent -ne $(Get-Content $logPath)#>) {
     <##TODO could inject a retry getblob here#>$skipfile = 1; Write-Error "Blob write to local cache went corrupt, empty, or missing."
 }else {
     # LogFile read (switch for gzip/plaintext json)
@@ -695,34 +700,33 @@ elseif ( !(Test-Path $logPath) -or $(Get-Content $logPath).length -eq 0 <#-or $b
         # $json = Convert-LogLineToJson($log)
         # $compressedJson = $renamedJsonPrimative|ConvertTo-Json -depth 2 -compress
         # Write-Host ("Updated Json Props to be dispatched`n`n" + $renamedJsonPrimative + "`n")
-        try {
-        $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName
-            Write-Host ("############################# Compressed LA Post Result: " + $LApostResult)
-        }catch {
-            $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName
-            Write-Warning ("############################# Uncompressed LA Post Result: " + $LApostResult)
-        }
-
+        # try {
+        # $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName
+            # Write-Host ("############################# Compressed LA Post Result: " + $LApostResult)
+        # }catch {
+            # $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName
+            # Write-Warning ("############################# Uncompressed LA Post Result: " + $LApostResult)
+        # }
         #TODO: Create chunking wrapper for LI API
-        # For use if receiver is tolerant, which LI is very much not:
-        # $kustoCompliantJson = Remove-InvalidProperties -jsonString $cleanedUnsafeJson
-        $publishJson = New-jsonToArray -rawJson $renamedJsonPrimative
+        # Testing remove-invalidProperties
+        $kustoCompliantJson = Remove-InvalidProperties -jsonString $renamedJsonPrimative
+        $publishJson = New-jsonToArray -rawJson $kustoCompliantJson
         Write-Host ("Updated Json Props to be dispatched`n`n" + $publishJson + "`n")
         $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
         -tenantId $tenantId -Body $publishJson
-        if ($LIpostResult -ne 200){
-            Write-Host ("############################# LI-DCR/E POST Result: " + $LIpostResult)
+        if ($LIpostResult -eq 204){
+            Write-Host ("############################# Log Ingestion-Data Collection Rule/Endpoint POST SUCCESS: " + $LIpostResult)
         }else {
-            Write-Warning ("########################## LI-DCR/E POST Result: " + $LIpostResult)
+            Write-Error ("########################## Log Ingestion-Data Collection Rule/Endpoint POST FAILURE: " + $LIpostResult)
         }
     }
 }
 # LogFile/Blob/QueueMessage Cleanup
-if ($LApostResult -eq 200 -or $LIpostResult -eq 200 <#-or $skipfile -eq 1#>) {
+if ($LIpostResult -eq 204 <# -or $LApostResult -eq 200 -or $skipfile -eq 1#>) {
     # Skip deletion of empty/irrelevant blobs
     if (!$skipfile) {
-        if ($LApostResult -eq 200) {Write-Host ("Storage Account Blobs ingested into Azure Monitoring API to Workspace Table $LATableName")}
-        if ($LIpostResult -eq 200) { Write-Host ("Storage Account Blobs ingested into Azure Log Ingestion API to Workspace Table $DCETable") }
+        # if ($LApostResult -eq 200) {Write-Host ("Storage Account Blobs ingested into Azure Monitoring API to Workspace Table $LATableName")}
+        if ($LIpostResult -eq 204) { Write-Host ("Storage Account Blobs ingested into Azure Log Ingestion API to Workspace Table $DCETable") }
         Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath
         Remove-Item $logPath
     }else{
@@ -736,4 +740,4 @@ Write-LogFooter
 # Cleanup env
 [System.GC]::collect() #cleanup memory
 [System.GC]::GetTotalMemory($true) | out-null #Force full garbage collection
-# >>EOF
+#>>>EOF
