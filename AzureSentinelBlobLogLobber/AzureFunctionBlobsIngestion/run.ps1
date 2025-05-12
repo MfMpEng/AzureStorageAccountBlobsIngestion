@@ -57,8 +57,8 @@ $DCEEntAppRegKey     = $env:DCEEntAppRegKey
   $BlobType           = $QueueArr.data.blobType # BlockBlob
   $BlobEncoding       = $QueueArr.data.contentEncoding # gzip
   $evtTime            = $QueueArr.eventTime
-  $QueueID            = $TriggerMetadata.Id
-  $QueuePOP           = $TriggerMetadata.PopReceipt
+#   $QueueID            = $TriggerMetadata.Id
+#   $QueuePOP           = $TriggerMetadata.PopReceipt
   $AzureStorage       = New-AzStorageContext -ConnectionString $AzureWebJobsStorage
   $logPath            = [System.IO.Path]::Combine($env:TEMP, $BlobName)
   $skipfile           = $false;
@@ -363,6 +363,15 @@ Function Submit-ChunkLAdata ([string]$corejson, [string]$customLogName) {
 #     $logJson += "}]";
 #     return $logJson
 # }
+Function New-jsonToArray ([Parameter(Mandatory = $true )]$rawJson){
+    # Convert the JSON object into an array
+    $jsonArray = @($rawJson)
+    # Convert the array back to JSON for submission
+    $jsonArrayString = $jsonArray | ConvertTo-Json
+    # Output the JSON array string
+    return $jsonArrayString
+
+}
 # Input Parser
 Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$rawJson) {
     # Custom property name dictionary
@@ -688,20 +697,22 @@ elseif ( !(Test-Path $logPath) -or $(Get-Content $logPath).length -eq 0 <#-or $b
         # For use when log source only has prop values, no names:
         # $json = Convert-LogLineToJson($log)
         # $compressedJson = $renamedJsonPrimative|ConvertTo-Json -depth 2 -compress
-        Write-Host ("Updated Json Props to be dispatched`n`n" + $renamedJsonPrimative + "`n")
+        # Write-Host ("Updated Json Props to be dispatched`n`n" + $renamedJsonPrimative + "`n")
         try {
         $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName
-            Write-Host ("Compressed LA Post Result: " + $LApostResult)
+            Write-Host ("############################# Compressed LA Post Result: " + $LApostResult)
         }catch {
             $LApostResult = Submit-ChunkLAdata -Corejson $renamedJsonPrimative -CustomLogName $LATableName
-            Write-Warning ("Uncompressed LA Post Result: " + $LApostResult)
+            Write-Warning ("############################# Uncompressed LA Post Result: " + $LApostResult)
         }
 
         #TODO: Create chunking wrapper for LI API
         # For use if receiver is tolerant, which LI is very much not:
         # $kustoCompliantJson = Remove-InvalidProperties -jsonString $cleanedUnsafeJson
+        $publishJson = New-jsonToArray -rawJson $renamedJsonPrimative
+        Write-Host ("Updated Json Props to be dispatched`n`n" + $publishJson + "`n")
         $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
-        -tenantId $tenantId -Body $renamedJsonPrimative
+        -tenantId $tenantId -Body $publishJson
         if ($LIpostResult -ne 200){
             Write-Host ("############################# LI-DCR/E POST Result: " + $LIpostResult)
         }else {
@@ -719,8 +730,8 @@ if ($LApostResult -eq 200 -or $LIpostResult -eq 200 <#-or $skipfile -eq 1#>) {
         Remove-Item $logPath
     }else{
         # We polled a queue message about a blob that was missing or invalid. Could just nix queue message to prevent retry.
-        $queueDelResponse = Remove-AzStorageQueueMessage -StorageAccountName $StorageAccountName -queueName $StgQueueName `
-        -messageId $QueueID -popReceipt $QueuePOP -connectionString $AzureWebJobsStorage
+        # $queueDelResponse = Remove-AzStorageQueueMessage -StorageAccountName $StorageAccountName -queueName $StgQueueName `
+        # -messageId $QueueID -popReceipt $QueuePOP -connectionString $AzureWebJobsStorage
         # Write-Host ("Queue Message Deletion Status: " + $queueDelResponse)
     }
 }
