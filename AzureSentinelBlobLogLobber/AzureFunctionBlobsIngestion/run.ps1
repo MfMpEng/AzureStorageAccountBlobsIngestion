@@ -11,22 +11,25 @@
         09/11/2024 https://learn.microsoft.com/en-us/azure/azure-monitor/logs/api/errors
         09/11/2024 https://learn.microsoft.com/en-us/azure/azure-monitor/logs/custom-logs-migrate
     .NOTES
-        Title:          Azure Sentinel Blob Log Lobber - Process Json Blobs via Storage Queue Messages
-        Language:       PowerShell
-        Version:        1.5.1
-        Author(s):      MF@CF,Sreedhar Ande, Travis Roberts, kozhemyak
-        Last Modified:  2025-03-14
-        Comment:        Migration to Log Ingestion API - Deprecation notice: The Azure Monitor HTTP Data Collector API
+        Title:  Azure Sentinel Blob Log Lobber - Process Json Blobs via Storage Queue Messages
+        Language:  PowerShell
+        Version:  1.9.5
+        Author(s):  MF@CF,Sreedhar Ande, Travis Roberts, kozhemyak
+        Last Modified:  2025-05-12
+        Comment:  Migration to Log Ingestion API - Deprecation notice: The Azure Monitor HTTP Data Collector API
                         has been deprecated and will no longer be functionalas of 9/14/2026. It's been replaced by the
                         Logs ingestion API. [.LINK 1]
         CHANGE HISTORY
         1.0.0 Inital release of code
         1.5.0 Submits blob content not queue message
-        2.0.0 Options to Use Log Ingestion API
+        1.9.5 Strictly use new Log Ingestion API
+        2.0.0 Provide all requisite resources in ARM for Blob-to-LogIngestionAPI
         TODO
-        - Convert DCR/LI function into a chunking wrapper like the LA Data Collector
-        - ARM template the direct-endpoint DCR and an EntApp Registration
-        - parameterize json param name hashtable
+        - Convert DCR/LI functioninto a chunking wrapper like the LA Data Collector
+        - ARM template the direct-endpoint DCR (no DCE) and an EntApp Registration
+        - parameterize json param name hashtable as csv input for ARM
+        - add blob get retry (for file lock scenario)
+        - add queue deletion for corrupt/invalid blobs
 #>
 # Input bindings are passed in via param block.
 param( [object]$QueueItem, [object]$TriggerMetadata )
@@ -688,7 +691,8 @@ if ($LIpostResult -eq 204 <# -or $LApostResult -eq 200 -or $skipfile -eq 1#>) {
         Remove-AzStorageBlob -Context $AzureStorage -Container $ContainerName -Blob $BlobPath
         Remove-Item $logPath
     }else{
-        # We polled a queue message about a blob that was missing or invalid. Could just nix queue message to prevent retry.
+        # We polled a queue message about a blob that was missing or invalid.
+        #TODO: just nix the queue msg to prevent retry on bad files
         # $queueDelResponse = Remove-AzStorageQueueMessage -StorageAccountName $StorageAccountName -queueName $StgQueueName `
         # -messageId $QueueID -popReceipt $QueuePOP -connectionString $AzureWebJobsStorage
         # Write-Host ("Queue Message Deletion Status: " + $queueDelResponse)
