@@ -550,46 +550,6 @@ Function Build-ChaffedSortedJsonProps ([Parameter(Mandatory = $true)][string]$ra
     $stringedJson = $sortedJson | ConvertTo-Json -Depth 2 -Compress
     return $stringedJson
 }
-# Input Parser
-Function Remove-InvalidProperties ([Parameter(Mandatory = $true)][string]$JsonString) {
-    # Convert JSON string to a PowerShell object
-    $jsonObject = $JsonString | ConvertFrom-Json
-    # append required field
-    $jsonObject | Add-Member -MemberType NoteProperty -Name "TimeGenerated" -Value $jsonObject."@timestamp" -Force
-    #fix json subarrays
-    $req_headers = $jsonObject.req_headers | ConvertFrom-Json
-    $jsonObject.req_headers = $req_headers
-    try {
-        $original_Headers = $jsonObject.original_headers | ConvertFrom-Json -ErrorAction Stop
-        $jsonObject.original_Headers = $original_Headers
-    }
-    catch {
-        # Write-Warning "Original_Headers not present in this blob"
-    }
-    # Recursive function to remove invalid properties
-    function Remove-InvalidProps {
-        param (
-            [Parameter(Mandatory = $true)]
-            [PSCustomObject]$Object
-        )
-        # Get the keys to remove
-        $keysToRemove = $Object.PSObject.Properties.Name | Where-Object { $_ -match '^_' -or $_ -match '^@' -or $_ -eq 'time' -or $_ -eq 'content-type' }
-        # Remove the keys
-        foreach ($key in $keysToRemove) {
-            $Object.PSObject.Properties.Remove($key)
-        }
-        # Recursively process nested objects
-        foreach ($key in $Object.PSObject.Properties.Name) {
-            if ($Object.$key -is [PSCustomObject]) {
-                Remove-InvalidProps -Object $Object.$key
-            }
-        }
-    }
-    # Call the recursive function
-    Remove-InvalidProps -Object $jsonObject
-    # Convert the cleaned object back to a JSON string
-    return $jsonObject | ConvertTo-Json -Depth 2 -Compress
-}
 # Input Sanitizer
 Function Format-DirtyJson ([string]$jsonString) {
     $jsonString = $jsonString -replace '[/&<>]', {
@@ -708,9 +668,7 @@ elseif ( !(Test-Path $logPath) -or $(Get-Content $logPath).length -eq 0 -or $log
             # Write-Warning ("############################# Uncompressed LA Post Result: " + $LApostResult)
         # }
         #TODO: Create chunking wrapper for LI API
-        # Testing remove-invalidProperties
-        $kustoCompliantJson = Remove-InvalidProperties -jsonString $renamedJsonPrimative
-        $publishJson = New-jsonToArray -rawJson $kustoCompliantJson
+        $publishJson = New-jsonToArray -rawJson $renamedJsonPrimative
         Write-Host ("Updated Json Props to be dispatched`n`n" + $publishJson + "`n")
         $LIpostResult = Submit-LogIngestion -DCE $DCE -DCEEntAppId $DCEEntAppId -DCEEntAppRegKey $DCEEntAppRegKey `
         -tenantId $tenantId -Body $publishJson
